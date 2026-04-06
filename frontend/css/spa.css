@@ -393,7 +393,6 @@ a { text-decoration: none; color: inherit; }
   outline: none;
   transition: var(--transition);
   border-radius: 8px;
-  -webkit-appearance: none;
 }
 .input-luxury:focus {
   border-color: var(--lilac);
