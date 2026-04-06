@@ -59,24 +59,17 @@ function getAvailableDates() {
 ### 4. ✅ Zona Horaria Colombia (UTC-5)
 **Configuraciones:**
 
-**Backend:** `backend/server.js` línea 6
+**Frontend (JavaScript):** `frontend/js/bookings.js`
 ```javascript
-process.env.TZ = 'America/Bogota'
-```
-
-**Vercel:** `vercel.json`
-```json
-{
-  "env": {
-    "TZ": "America/Bogota"
-  }
-}
+const colombiaTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Bogota' }))
 ```
 
 **Supabase:** Ejecutar `configurar_zona_horaria.sql`
 ```sql
 ALTER DATABASE postgres SET timezone TO 'America/Bogota';
 ```
+
+**Nota:** La zona horaria se maneja en el código JavaScript, no requiere configuración en Vercel.
 
 ### 5. ✅ Icono en Página de Confirmación
 **Ubicación:** `frontend/reservas.html` línea ~115
@@ -119,9 +112,10 @@ Agrega estas variables:
 |----------|-------|-------------|
 | `SUPABASE_URL` | `https://tu-proyecto.supabase.co` | URL de tu proyecto Supabase |
 | `SUPABASE_ANON_KEY` | `eyJ...` | Anon key de Supabase |
-| `TZ` | `America/Bogota` | Zona horaria Colombia |
 | `WHATSAPP_NUMBER` | `573001234567` | Número WhatsApp (opcional) |
 | `N8N_WEBHOOK_URL` | `https://...` | Webhook n8n (opcional) |
+
+**Nota:** No agregues la variable `TZ` en Vercel. La zona horaria de Colombia se maneja directamente en el código JavaScript.
 
 ### Paso 2: Ejecutar Scripts SQL en Supabase
 1. Ve a Supabase → SQL Editor

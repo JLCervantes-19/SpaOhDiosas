@@ -27,10 +27,11 @@ git push -u origin main
 ```
 SUPABASE_URL=https://tu-proyecto.supabase.co
 SUPABASE_ANON_KEY=eyJ...tu-key...
-TZ=America/Bogota
 ```
 
 5. Click "Deploy"
+
+**Nota:** No agregues la variable TZ en Vercel, la zona horaria se maneja en el código.
 
 ---
 
@@ -64,7 +65,7 @@ TZ=America/Bogota
 
 ### Hora incorrecta en created_at
 - Ejecuta `configurar_zona_horaria.sql` en Supabase
-- Verifica que TZ=America/Bogota esté en Vercel
+- La zona horaria se maneja en el código JavaScript usando `America/Bogota`
 
 ---
 

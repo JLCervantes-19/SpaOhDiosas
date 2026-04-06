@@ -4,9 +4,6 @@
 
 require('dotenv').config()
 
-// Configurar zona horaria de Colombia para toda la aplicación
-process.env.TZ = 'America/Bogota'
-
 const express  = require('express')
 const cors     = require('cors')
 const path     = require('path')

@@ -1,8 +1,5 @@
 {
   "version": 2,
-  "env": {
-    "TZ": "America/Bogota"
-  },
   "builds": [
     {
       "src": "frontend/**",

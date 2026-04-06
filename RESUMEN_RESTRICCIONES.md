@@ -36,26 +36,19 @@ const startDay = currentHour >= 18 ? 2 : 1
 ---
 
 ### 3️⃣ ZONA HORARIA COLOMBIA (UTC-5)
-**Estado:** ✅ Implementado en 3 lugares
+**Estado:** ✅ Implementado en 2 lugares
 
-**Backend:**
+**Frontend (JavaScript):**
 ```javascript
-process.env.TZ = 'America/Bogota'
-```
-
-**Vercel:**
-```json
-{
-  "env": {
-    "TZ": "America/Bogota"
-  }
-}
+const colombiaTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Bogota' }))
 ```
 
 **Supabase:**
 ```sql
 ALTER DATABASE postgres SET timezone TO 'America/Bogota';
 ```
+
+**Nota:** La zona horaria se maneja directamente en el código JavaScript usando la API de Intl, no requiere variables de entorno en Vercel.
 
 ---
 

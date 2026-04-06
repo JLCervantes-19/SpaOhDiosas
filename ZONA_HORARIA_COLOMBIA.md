@@ -1,20 +1,53 @@
 # ⏰ Configuración de Zona Horaria - Colombia
 
 ## 🎯 Problema
-Las fechas y horas se guardan en UTC (hora universal) en lugar de hora de Colombia (COT - Colombia Time, UTC-5).
+Las fechas y horas deben usar la zona horaria de Colombia (COT - Colombia Time, UTC-5).
 
-## ✅ Solución Implementada
+## ✅ Solución Implementada (Compatible con Vercel)
 
-### 1. Backend (Node.js)
-Configurado en `backend/server.js`:
+### 1. Frontend (JavaScript)
+**Archivo:** `frontend/js/bookings.js`
+
+Usamos la API nativa de JavaScript para manejar la zona horaria:
+
 ```javascript
-process.env.TZ = 'America/Bogota'
+function getAvailableDates() {
+  const dates = []
+  const now = new Date()
+  
+  // Convertir a hora de Colombia usando la API de Intl
+  const colombiaTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Bogota' }))
+  const currentHour = colombiaTime.getHours()
+  
+  // Si son más de las 18:00 (6 PM), empezar desde 2 días adelante
+  const startDay = currentHour >= 18 ? 2 : 1
+  
+  for (let i = startDay; dates.length < 15; i++) {
+    const d = new Date(colombiaTime)
+    d.setDate(colombiaTime.getDate() + i)
+    if (d.getDay() !== 0) dates.push(d)
+  }
+  return dates
+}
 ```
 
-Esto hace que todas las fechas en Node.js usen hora de Colombia.
+**Ventajas:**
+- ✅ Funciona en Vercel sin configuración especial
+- ✅ No requiere variables de entorno
+- ✅ Usa la API estándar de JavaScript (Intl)
+- ✅ Compatible con todos los navegadores modernos
 
 ### 2. Supabase (PostgreSQL)
-Ejecuta el script `configurar_zona_horaria.sql` en Supabase SQL Editor.
+Ejecuta el script `configurar_zona_horaria.sql` en Supabase SQL Editor:
+
+```sql
+-- Configurar zona horaria de la base de datos
+ALTER DATABASE postgres SET timezone TO 'America/Bogota';
+
+-- Verificar configuración
+SHOW timezone;
+-- Debe mostrar: America/Bogota
+```
 
 Esto configura:
 - Zona horaria de la base de datos
@@ -22,159 +55,65 @@ Esto configura:
 - Valores por defecto con hora de Colombia
 
 ### 3. Vercel (Producción)
-Configurado en `vercel.json`:
-```json
-{
-  "env": {
-    "TZ": "America/Bogota"
-  }
-}
-```
+**No requiere configuración especial.**
 
-Esto asegura que en producción también use hora de Colombia.
+La zona horaria se maneja en el código JavaScript del frontend, por lo que funciona automáticamente en Vercel.
 
----
+## 🧪 Verificación
 
-## 📋 Pasos para Configurar
-
-### Paso 1: Ejecutar SQL en Supabase (5 minutos)
-
-1. Ve a [Supabase Dashboard](https://app.supabase.com)
-2. SQL Editor → New Query
-3. Copia y pega el contenido de `configurar_zona_horaria.sql`
-4. Haz clic en "Run"
-5. Deberías ver: "Zona horaria configurada correctamente ✓"
-
-### Paso 2: Reiniciar Servidor Local
-
+### Probar Localmente
 ```bash
-# Detener servidor (Ctrl+C)
-npm run dev
+npm start
+# Abre http://localhost:3000/reservas.html
+# Verifica que el calendario respete la hora de Colombia
 ```
 
-### Paso 3: Probar
+### Probar en Vercel
+1. Despliega a Vercel
+2. Abre la página de reservas
+3. Verifica el comportamiento:
+   - Antes de 6 PM Colombia: Muestra desde mañana
+   - Después de 6 PM Colombia: Muestra desde pasado mañana
 
-Crea una reserva y verifica en Supabase que `created_at` tenga la hora correcta de Colombia.
+### Verificar en Supabase
+1. Crea una cita desde la web
+2. Ve a Supabase → Table Editor → citas
+3. Verifica que `created_at` muestre hora de Colombia
 
----
+## 📋 Ejemplo de Comportamiento
 
-## 🔍 Verificar que Funciona
-
-### En Supabase:
-```sql
--- Ver zona horaria actual
-SHOW timezone;
--- Debería mostrar: America/Bogota
-
--- Ver hora actual
-SELECT NOW();
--- Debería mostrar hora de Colombia (UTC-5)
-```
-
-### En tu aplicación:
+**Escenario 1: Son las 5:00 PM en Colombia**
 ```javascript
-console.log(new Date().toString())
-// Debería mostrar: ... GMT-0500 (Colombia Standard Time)
+const colombiaTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Bogota' }))
+// colombiaTime.getHours() = 17
+// startDay = 1
+// Calendario muestra: Mañana, Pasado mañana, etc.
 ```
 
----
-
-## 🌍 Zonas Horarias de Colombia
-
-Colombia usa **COT (Colombia Time)**:
-- **UTC-5** todo el año
-- **NO tiene horario de verano** (daylight saving time)
-- Misma zona que: Perú, Ecuador, Panamá (parte)
-
----
-
-## 📊 Cómo se Guardan las Fechas
-
-### Antes (Problema):
-```
-Usuario crea cita a las 10:00 AM (Colombia)
-→ Se guarda: 2026-04-05 15:00:00 (UTC)
-→ Se muestra: 10:00 AM (correcto, pero confuso)
-```
-
-### Después (Solución):
-```
-Usuario crea cita a las 10:00 AM (Colombia)
-→ Se guarda: 2026-04-05 10:00:00-05 (Colombia)
-→ Se muestra: 10:00 AM (correcto y claro)
-```
-
----
-
-## 🚀 Para Vercel (Producción)
-
-### Opción 1: Variables de Entorno (Recomendado)
-Ya está configurado en `vercel.json`, pero también puedes agregarlo en:
-
-1. Vercel Dashboard → Tu Proyecto
-2. Settings → Environment Variables
-3. Agregar:
-   - Name: `TZ`
-   - Value: `America/Bogota`
-   - Environments: Production, Preview, Development
-
-### Opción 2: Verificar en Vercel
-Después de desplegar, verifica con:
+**Escenario 2: Son las 7:00 PM en Colombia**
 ```javascript
-// En tu API
-app.get('/api/test-timezone', (req, res) => {
-  res.json({
-    timezone: process.env.TZ,
-    date: new Date().toString(),
-    iso: new Date().toISOString()
-  })
-})
+const colombiaTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Bogota' }))
+// colombiaTime.getHours() = 19
+// startDay = 2
+// Calendario muestra: Pasado mañana, día siguiente, etc.
 ```
 
----
+## ❌ Lo que NO se necesita
 
-## 🐛 Solución de Problemas
+- ❌ Variable de entorno `TZ` en Vercel (no está permitida)
+- ❌ Librería moment-timezone
+- ❌ Configuración especial en el servidor
+- ❌ `process.env.TZ` en Node.js
 
-### Problema: Las fechas siguen en UTC
-**Solución:**
-1. Verifica que ejecutaste el SQL en Supabase
-2. Reinicia el servidor Node.js
-3. Limpia caché del navegador
+## ✅ Resumen
 
-### Problema: En Vercel las fechas están mal
-**Solución:**
-1. Verifica que `vercel.json` tenga `"TZ": "America/Bogota"`
-2. Re-despliega el proyecto
-3. Verifica variables de entorno en Vercel Dashboard
-
-### Problema: Supabase muestra hora diferente
-**Solución:**
-```sql
--- Ejecuta esto en Supabase
-SET timezone = 'America/Bogota';
-SELECT NOW();
+La zona horaria de Colombia se maneja de forma nativa en JavaScript usando:
+```javascript
+new Date(now.toLocaleString('en-US', { timeZone: 'America/Bogota' }))
 ```
 
----
-
-## 📝 Archivos Modificados
-
-- ✅ `backend/server.js` - Configurado TZ
-- ✅ `vercel.json` - Agregado env TZ
-- ✅ `configurar_zona_horaria.sql` - Script para Supabase
-
----
-
-## 🎯 Checklist
-
-- [ ] Ejecutar `configurar_zona_horaria.sql` en Supabase
-- [ ] Verificar con `SHOW timezone;` en Supabase
-- [ ] Reiniciar servidor local
-- [ ] Crear una cita de prueba
-- [ ] Verificar en Supabase que `created_at` tenga hora correcta
-- [ ] Desplegar a Vercel
-- [ ] Verificar en producción que las fechas sean correctas
-
----
-
-¡Listo! Ahora todas las fechas y horas estarán en hora de Colombia 🇨🇴⏰
+Esta solución:
+- Funciona en cualquier plataforma (Vercel, Netlify, etc.)
+- No requiere configuración de servidor
+- Es precisa y confiable
+- Compatible con todos los navegadores modernos
