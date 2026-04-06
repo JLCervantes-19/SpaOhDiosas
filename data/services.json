@@ -1,0 +1,68 @@
+[
+  {
+    "id": "1",
+    "nombre": "Ritual de Piedras Calientes",
+    "descripcion": "Fusión de calor terapéutico y aromaterapia para liberar tensiones profundas. Una experiencia que transforma cuerpo y mente.",
+    "precio": 180000,
+    "duracion_min": 90,
+    "buffer_min": 15,
+    "imagen": "https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?w=600&q=80",
+    "categoria": "Cuerpo",
+    "activo": true
+  },
+  {
+    "id": "2",
+    "nombre": "Facial Luminosidad Dorada",
+    "descripcion": "Tratamiento vitamínico que revela la luminosidad natural de tu piel. Resultados visibles desde la primera sesión.",
+    "precio": 130000,
+    "duracion_min": 60,
+    "buffer_min": 10,
+    "imagen": "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=600&q=80",
+    "categoria": "Facial",
+    "activo": true
+  },
+  {
+    "id": "3",
+    "nombre": "Masaje Descontracturante",
+    "descripcion": "Técnicas profundas que liberan puntos de tensión muscular crónica. Ideal para el estrés acumulado.",
+    "precio": 110000,
+    "duracion_min": 60,
+    "buffer_min": 10,
+    "imagen": "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=600&q=80",
+    "categoria": "Masaje",
+    "activo": true
+  },
+  {
+    "id": "4",
+    "nombre": "Ritual Cuerpo Completo",
+    "descripcion": "Experiencia inmersiva: exfoliación, envoltura aromática y masaje de bienestar total. El lujo en su máxima expresión.",
+    "precio": 250000,
+    "duracion_min": 120,
+    "buffer_min": 20,
+    "imagen": "https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=600&q=80",
+    "categoria": "Premium",
+    "activo": true
+  },
+  {
+    "id": "5",
+    "nombre": "Reflexología Podal",
+    "descripcion": "Estimulación de puntos reflejos en los pies que equilibra el sistema nervioso y activa la energía vital.",
+    "precio": 90000,
+    "duracion_min": 45,
+    "buffer_min": 10,
+    "imagen": "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?w=600&q=80",
+    "categoria": "Bienestar",
+    "activo": true
+  },
+  {
+    "id": "6",
+    "nombre": "Aromaterapia & Relajación",
+    "descripcion": "Aceites esenciales de alta pureza combinados con técnicas de respiración para una relajación total.",
+    "precio": 100000,
+    "duracion_min": 60,
+    "buffer_min": 10,
+    "imagen": "https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=600&q=80",
+    "categoria": "Bienestar",
+    "activo": true
+  }
+]

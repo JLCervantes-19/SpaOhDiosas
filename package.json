@@ -1,0 +1,23 @@
+{
+  "name": "spa-luxury-vanilla",
+  "version": "1.0.0",
+  "description": "Sistema web Spa Luxury — HTML + Node.js + Express",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "nodemon backend/server.js",
+    "vercel": "vercel dev"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.101.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

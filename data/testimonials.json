@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1,
+    "nombre": "Camila Rodríguez",
+    "servicio": "Ritual de Piedras Calientes",
+    "rating": 5,
+    "texto": "Una experiencia que va más allá del cuerpo. El ambiente, el aroma, la atención... todo es absolutamente perfecto. Ya es mi ritual mensual."
+  },
+  {
+    "id": 2,
+    "nombre": "Valentina Ospina",
+    "servicio": "Facial Luminosidad Dorada",
+    "rating": 5,
+    "texto": "Mi piel nunca había lucido tan radiante. El tratamiento es delicioso y los resultados son inmediatos. Totalmente recomendado."
+  },
+  {
+    "id": 3,
+    "nombre": "Mariana Torres",
+    "servicio": "Ritual Cuerpo Completo",
+    "rating": 5,
+    "texto": "Llegué con el estrés de la semana y salí literalmente flotando. El equipo es excepcional y el espacio es de otro nivel."
+  },
+  {
+    "id": 4,
+    "nombre": "Sofía Mendoza",
+    "servicio": "Masaje Descontracturante",
+    "rating": 5,
+    "texto": "Llevaba meses con dolor de espalda y después de una sesión sentí un alivio increíble. El mejor dinero que he invertido en mí misma."
+  }
+]

@@ -1,0 +1,9 @@
+node_modules/
+.env
+.env.local
+.vercel
+data/bookings.json
+data/contacts.json
+*.log
+.DS_Store
+Thumbs.db
