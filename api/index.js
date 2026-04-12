@@ -9,6 +9,7 @@ const cors     = require('cors')
 const servicesRouter = require('../backend/routes/services')
 const bookingsRouter = require('../backend/routes/bookings')
 const contactRouter  = require('../backend/routes/contact')
+const chatRouter     = require('../backend/routes/chat')
 
 const app = express()
 app.use(cors())
@@ -17,6 +18,7 @@ app.use(express.json())
 app.use('/api/services',     servicesRouter)
 app.use('/api/bookings',     bookingsRouter)
 app.use('/api/contact',      contactRouter)
+app.use('/api/chat',         chatRouter)
 
 // Testimonials endpoint separado
 app.get('/api/testimonials', (req, res) => {

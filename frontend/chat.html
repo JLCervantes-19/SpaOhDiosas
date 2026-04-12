@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat — Serenità Spa</title>
+  <meta name="description" content="Chatea con nosotros para consultas, reservas y más información sobre nuestros servicios." />
+
+  <!-- Fuentes de lujo -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family:Jost:wght@300;400;500;600&family=Cinzel:wght@400;600&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    :root {
+      --lilac: #AD74C3;
+      --lilac-light: #C9A0D9;
+      --lilac-dark: #8B5BA8;
+      --purple-dark: #522665;
+      --gold: #C9A961;
+      --gold-light: #DFC98A;
+      --white: #FFFFFF;
+      --cream: #FAF8F5;
+      --text-dark: #1C1C1E;
+    }
+
+    body {
+      font-family: 'Jost', system-ui, sans-serif;
+      background: var(--cream);
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Chat Container */
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      max-width: 100%;
+      margin: 0 auto;
+      background: var(--cream);
+    }
+
+    /* Header */
+    .chat-header {
+      background: linear-gradient(135deg, var(--lilac) 0%, var(--lilac-dark) 100%);
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 2px 12px rgba(173, 116, 195, 0.3);
+      position: relative;
+      z-index: 10;
+    }
+
+    .chat-avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: rgba(201, 169, 97, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      border: 3px solid var(--gold);
+      flex-shrink: 0;
+    }
+
+    .chat-header-info {
+      flex: 1;
+    }
+
+    .chat-header-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1.4rem;
+      color: white;
+      margin: 0;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+    }
+
+    .chat-header-subtitle {
+      font-family: 'Jost', sans-serif;
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.8);
+      margin: 4px 0 0 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #4ade80;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .back-button {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.15);
+      border: 2px solid rgba(201, 169, 97, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      color: white;
+      text-decoration: none;
+    }
+
+    .back-button:hover {
+      background: rgba(201, 169, 97, 0.3);
+      border-color: var(--gold);
+      transform: scale(1.05);
+    }
+
+    /* Messages Area */
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      background: var(--cream);
+    }
+
+    .chat-messages::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .chat-messages::-webkit-scrollbar-track {
+      background: rgba(173, 116, 195, 0.1);
+    }
+
+    .chat-messages::-webkit-scrollbar-thumb {
+      background: rgba(173, 116, 195, 0.3);
+      border-radius: 4px;
+    }
+
+    .chat-messages::-webkit-scrollbar-thumb:hover {
+      background: rgba(173, 116, 195, 0.5);
+    }
+
+    /* Message Bubbles */
+    .message {
+      display: flex;
+      gap: 12px;
+      animation: slideIn 0.3s ease-out;
+      align-items: flex-start;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .message.user {
+      flex-direction: row-reverse;
+    }
+
+    .message-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+
+    .message.bot .message-avatar {
+      background: rgba(173, 116, 195, 0.2);
+      border: 2px solid var(--lilac);
+    }
+
+    .message.user .message-avatar {
+      background: rgba(201, 169, 97, 0.2);
+      border: 2px solid var(--gold);
+    }
+
+    .message-bubble {
+      max-width: 85%;
+      padding: 12px 16px;
+      border-radius: 18px;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+    }
+
+    .message.bot .message-bubble {
+      background: white;
+      color: var(--text-dark);
+      border-bottom-left-radius: 4px;
+      box-shadow: 0 2px 8px rgba(173, 116, 195, 0.1);
+      border: 1px solid rgba(173, 116, 195, 0.1);
+    }
+
+    .message.user .message-bubble {
+      background: var(--lilac);
+      color: white;
+      border-bottom-right-radius: 4px;
+      box-shadow: 0 2px 8px rgba(173, 116, 195, 0.2);
+    }
+
+    .message-time {
+      font-size: 0.7rem;
+      color: rgba(28, 28, 30, 0.4);
+      margin-top: 4px;
+    }
+
+    .message.user .message-time {
+      color: rgba(255, 255, 255, 0.7);
+      text-align: right;
+    }
+
+    /* Quick Replies */
+    .quick-replies {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+      padding: 0 48px;
+    }
+
+    .quick-reply-btn {
+      padding: 10px 18px;
+      border-radius: 20px;
+      border: 2px solid var(--lilac);
+      background: white;
+      color: var(--purple-dark);
+      font-family: 'Jost', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(173, 116, 195, 0.1);
+    }
+
+    .quick-reply-btn:hover {
+      background: var(--lilac);
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(173, 116, 195, 0.3);
+      border-color: var(--lilac-dark);
+    }
+
+    /* Typing Indicator */
+    .typing-indicator {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .typing-bubble {
+      background: white;
+      padding: 14px 18px;
+      border-radius: 18px;
+      border-bottom-left-radius: 4px;
+      display: flex;
+      gap: 4px;
+      box-shadow: 0 2px 8px rgba(173, 116, 195, 0.1);
+      border: 1px solid rgba(173, 116, 195, 0.1);
+    }
+
+    .typing-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--lilac);
+      animation: typingBounce 1.4s ease-in-out infinite;
+    }
+
+    .typing-dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .typing-dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes typingBounce {
+      0%, 60%, 100% {
+        transform: translateY(0);
+      }
+      30% {
+        transform: translateY(-8px);
+      }
+    }
+
+    /* Input Area */
+    .chat-input-container {
+      padding: 16px;
+      background: white;
+      border-top: 1px solid rgba(173, 116, 195, 0.2);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      box-shadow: 0 -2px 12px rgba(173, 116, 195, 0.08);
+    }
+
+    .chat-input {
+      flex: 1;
+      padding: 14px 20px;
+      border: 2px solid rgba(173, 116, 195, 0.3);
+      border-radius: 24px;
+      font-family: 'Jost', sans-serif;
+      font-size: 0.95rem;
+      color: var(--text-dark);
+      background: var(--cream);
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    .chat-input:focus {
+      border-color: var(--lilac);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(173, 116, 195, 0.1);
+    }
+
+    .chat-input::placeholder {
+      color: rgba(28, 28, 30, 0.4);
+    }
+
+    .send-button {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--lilac) 0%, var(--lilac-dark) 100%);
+      border: 2px solid var(--gold);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+    }
+
+    .send-button:hover {
+      background: linear-gradient(135deg, var(--lilac-light) 0%, var(--lilac) 100%);
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(173, 116, 195, 0.3);
+    }
+
+    .send-button:active {
+      transform: scale(0.95);
+    }
+
+    .send-button:disabled {
+      background: rgba(173, 116, 195, 0.3);
+      cursor: not-allowed;
+      border-color: rgba(201, 169, 97, 0.3);
+    }
+
+    /* Welcome Message */
+    .welcome-message {
+      text-align: center;
+      padding: 40px 20px;
+      color: rgba(28, 28, 30, 0.5);
+    }
+
+    .welcome-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .welcome-text {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.2rem;
+      color: var(--purple-dark);
+      margin-bottom: 8px;
+    }
+
+    .welcome-subtext {
+      font-size: 0.9rem;
+      color: rgba(28, 28, 30, 0.5);
+    }
+
+    /* Responsive */
+    @media (min-width: 768px) {
+      .chat-container {
+        max-width: 600px;
+        margin: 0 auto;
+        box-shadow: 0 0 40px rgba(173, 116, 195, 0.15);
+      }
+
+      .message-bubble {
+        max-width: 75%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="chat-container">
+    <!-- Header -->
+    <div class="chat-header">
+      <a href="index.html" class="back-button" aria-label="Volver al inicio">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+      </a>
+      
+      <div class="chat-avatar">🌿</div>
+      
+      <div class="chat-header-info">
+        <h1 class="chat-header-title">Serenità Spa</h1>
+        <p class="chat-header-subtitle">
+          <span class="status-dot"></span>
+          En línea · Responde en minutos
+        </p>
+      </div>
+    </div>
+
+    <!-- Messages Area -->
+    <div class="chat-messages" id="chatMessages">
+      <!-- Welcome Message -->
+      <div class="welcome-message">
+        <div class="welcome-icon">🌿</div>
+        <p class="welcome-text">Bienvenido a Serenità Spa</p>
+        <p class="welcome-subtext">Estamos aquí para ayudarte</p>
+      </div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="chat-input-container">
+      <input 
+        type="text" 
+        id="chatInput" 
+        class="chat-input" 
+        placeholder="Escribe tu mensaje..."
+        aria-label="Mensaje de chat"
+      />
+      <button id="sendButton" class="send-button" aria-label="Enviar mensaje">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // Variables globales
+    const chatMessages = document.getElementById('chatMessages')
+    const chatInput = document.getElementById('chatInput')
+    const sendButton = document.getElementById('sendButton')
+    
+    let sessionId = null
+    let userName = null
+    let tempName = null  // Para el flujo de consultar citas
+    let currentCitas = null  // Para guardar las citas actuales
+    let selectedCita = null  // Para el flujo de cambio de fecha
+    let availableDays = null  // Días disponibles para reagendar
+    let selectedDay = null  // Día seleccionado para reagendar
+    let availableTimes = null  // Horarios disponibles
+    let isWaitingForName = false
+    let currentStep = 'initial'
+
+    // API Base URL
+    const API_BASE = window.location.origin + '/api/chat'
+
+    // Función para obtener hora actual
+    function getCurrentTime() {
+      const now = new Date()
+      return now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+    }
+
+    // Función para crear sesión
+    async function createSession() {
+      try {
+        const response = await fetch(`${API_BASE}/session`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        })
+        
+        if (!response.ok) throw new Error('Error creating session')
+        
+        const data = await response.json()
+        sessionId = data.session_id
+        localStorage.setItem('chat_session_id', sessionId)
+        console.log('Session created:', sessionId)
+      } catch (error) {
+        console.error('Error creating session:', error)
+      }
+    }
+
+    // Función para enviar mensaje al backend
+    async function sendMessageToBackend(message) {
+      try {
+        const response = await fetch(`${API_BASE}/message`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: sessionId,
+            user_name: userName,
+            temp_name: tempName,  // Para el flujo de consultar citas
+            citas: currentCitas,  // Para el flujo de gestión de citas
+            selectedCita: selectedCita,  // Para el flujo de cambio de fecha
+            availableDays: availableDays,  // Días disponibles
+            selectedDay: selectedDay,  // Día seleccionado
+            availableTimes: availableTimes,  // Horarios disponibles
+            message: message,
+            message_type: 'text',
+            step: currentStep
+          })
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.message || 'Error sending message')
+        }
+        
+        const data = await response.json()
+        return data
+      } catch (error) {
+        console.error('Error sending message:', error)
+        return {
+          bot_response: 'Lo siento, hubo un error al procesar tu mensaje. Por favor intenta de nuevo.'
+        }
+      }
+    }
+
+    // Función para agregar mensaje del bot con formato mejorado
+    function addBotMessage(text, showTime = true) {
+      const messageDiv = document.createElement('div')
+      messageDiv.className = 'message bot'
+      
+      // Procesar el texto para formato markdown simple
+      let formattedText = text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // **bold**
+        .replace(/\n/g, '<br>') // saltos de línea
+      
+      messageDiv.innerHTML = `
+        <div class="message-avatar">🌿</div>
+        <div style="flex: 1; max-width: 85%;">
+          <div class="message-bubble">${formattedText}</div>
+          ${showTime ? `<div class="message-time">${getCurrentTime()}</div>` : ''}
+        </div>
+      `
+      
+      chatMessages.appendChild(messageDiv)
+      scrollToBottom()
+    }
+
+    // Función para agregar mensaje del usuario
+    function addUserMessage(text) {
+      const messageDiv = document.createElement('div')
+      messageDiv.className = 'message user'
+      
+      messageDiv.innerHTML = `
+        <div class="message-avatar">👤</div>
+        <div style="flex: 1; max-width: 85%; display: flex; flex-direction: column; align-items: flex-end;">
+          <div class="message-bubble">${text}</div>
+          <div class="message-time">${getCurrentTime()}</div>
+        </div>
+      `
+      
+      chatMessages.appendChild(messageDiv)
+      scrollToBottom()
+    }
+
+    // Función para agregar quick replies
+    function addQuickReplies(options) {
+      const quickRepliesDiv = document.createElement('div')
+      quickRepliesDiv.className = 'quick-replies'
+      
+      options.forEach(option => {
+        const button = document.createElement('button')
+        button.className = 'quick-reply-btn'
+        button.textContent = option
+        button.onclick = () => handleQuickReply(option)
+        quickRepliesDiv.appendChild(button)
+      })
+      
+      chatMessages.appendChild(quickRepliesDiv)
+      scrollToBottom()
+    }
+
+    // Función para mostrar typing indicator
+    function showTypingIndicator() {
+      const typingDiv = document.createElement('div')
+      typingDiv.className = 'typing-indicator'
+      typingDiv.id = 'typingIndicator'
+      
+      typingDiv.innerHTML = `
+        <div class="message-avatar" style="background: rgba(173, 116, 195, 0.2); border: 2px solid var(--lilac);">🌿</div>
+        <div class="typing-bubble">
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+        </div>
+      `
+      
+      chatMessages.appendChild(typingDiv)
+      scrollToBottom()
+    }
+
+    // Función para ocultar typing indicator
+    function hideTypingIndicator() {
+      const indicator = document.getElementById('typingIndicator')
+      if (indicator) {
+        indicator.remove()
+      }
+    }
+
+    // Función para scroll al final
+    function scrollToBottom() {
+      setTimeout(() => {
+        chatMessages.scrollTop = chatMessages.scrollHeight
+      }, 100)
+    }
+
+    // Función para manejar quick replies
+    async function handleQuickReply(option) {
+      // Manejar opción "Salir" antes de enviar al backend
+      if (option.toLowerCase() === 'salir') {
+        // Remover todos los quick replies
+        document.querySelectorAll('.quick-replies').forEach(el => el.remove())
+        addUserMessage(option)
+        
+        setTimeout(() => {
+          addBotMessage('¡Hasta pronto! Fue un placer ayudarte. 💜✨')
+          // Limpiar sesión y redirigir
+          setTimeout(() => {
+            localStorage.removeItem('chat_session_id')
+            localStorage.removeItem('chat_user_name')
+            window.location.href = '/index.html'
+          }, 2000)
+        }, 500)
+        return
+      }
+      
+      // Remover todos los quick replies
+      document.querySelectorAll('.quick-replies').forEach(el => el.remove())
+      
+      // Agregar como mensaje del usuario
+      addUserMessage(option)
+      
+      // Mostrar typing indicator
+      showTypingIndicator()
+      
+      // Enviar al backend
+      const response = await sendMessageToBackend(option)
+      
+      hideTypingIndicator()
+      
+      // Actualizar estado
+      if (response.nextState) {
+        currentStep = response.nextState
+      }
+      
+      // Procesar respuesta
+      if (response.bot_response) {
+        addBotMessage(response.bot_response)
+      }
+      
+      // Guardar citas si el backend las retorna
+      if (response.data && response.data.citas) {
+        currentCitas = response.data.citas
+      }
+      
+      // Guardar contexto de cambio de fecha
+      if (response.selectedCita) {
+        selectedCita = response.selectedCita
+      }
+      if (response.availableDays) {
+        availableDays = response.availableDays
+      }
+      if (response.selectedDay) {
+        selectedDay = response.selectedDay
+      }
+      if (response.availableTimes) {
+        availableTimes = response.availableTimes
+      }
+      
+      // Mostrar quick replies si existen
+      if (response.quickReplies && response.quickReplies.length > 0) {
+        setTimeout(() => addQuickReplies(response.quickReplies), 500)
+      }
+      
+      // Mostrar menú si es necesario
+      else if (response.showMenu) {
+        setTimeout(() => showMainMenu(), 500)
+      }
+      
+      // Manejar acciones especiales
+      if (response.action === 'redirect_booking' || response.action === 'suggest_booking') {
+        setTimeout(() => {
+          addBotMessage('Te redirigiré a la página de reservas en 3 segundos...')
+          setTimeout(() => {
+            window.location.href = '/reservas.html'
+          }, 3000)
+        }, 1000)
+      }
+    }
+
+    // Función para mostrar menú principal
+    function showMainMenu() {
+      addQuickReplies([
+        'Ver servicios',
+        'Agendar cita',
+        'Consultar mis citas',
+        'Horarios y ubicación',
+        'Certificados de regalo'
+      ])
+    }
+
+    // Función para manejar envío de mensaje
+    async function handleSendMessage() {
+      const message = chatInput.value.trim()
+      
+      if (!message) return
+      
+      // Agregar mensaje del usuario
+      addUserMessage(message)
+      chatInput.value = ''
+      
+      // Si estamos esperando el nombre
+      if (isWaitingForName) {
+        userName = message
+        isWaitingForName = false
+        currentStep = 'awaiting_name'  // Importante: usar el estado correcto
+        localStorage.setItem('chat_user_name', userName)
+        
+        showTypingIndicator()
+        
+        // Enviar nombre al backend para registrarlo
+        const response = await sendMessageToBackend(message)
+        
+        hideTypingIndicator()
+        
+        // Actualizar userName si el backend lo retorna
+        if (response.userName) {
+          userName = response.userName
+          localStorage.setItem('chat_user_name', userName)
+        }
+        
+        if (response.bot_response) {
+          addBotMessage(response.bot_response)
+        }
+        
+        // Actualizar estado
+        if (response.nextState) {
+          currentStep = response.nextState
+        }
+        
+        // Mostrar menú
+        setTimeout(() => {
+          addBotMessage('¿En qué puedo ayudarte hoy?')
+          showMainMenu()
+        }, 1000)
+        
+        return
+      }
+      
+      // Enviar al backend
+      showTypingIndicator()
+      const response = await sendMessageToBackend(message)
+      hideTypingIndicator()
+      
+      // Actualizar estado
+      if (response.nextState) {
+        currentStep = response.nextState
+      }
+      
+      // Actualizar userName si el backend lo retorna
+      if (response.userName && !userName) {
+        userName = response.userName
+        localStorage.setItem('chat_user_name', userName)
+      }
+      
+      // Actualizar tempName si el backend lo retorna
+      if (response.tempName) {
+        tempName = response.tempName
+      }
+      
+      // Guardar citas si el backend las retorna
+      if (response.data && response.data.citas) {
+        currentCitas = response.data.citas
+      }
+      
+      // Guardar contexto de cambio de fecha
+      if (response.selectedCita) {
+        selectedCita = response.selectedCita
+      }
+      if (response.availableDays) {
+        availableDays = response.availableDays
+      }
+      if (response.selectedDay) {
+        selectedDay = response.selectedDay
+      }
+      if (response.availableTimes) {
+        availableTimes = response.availableTimes
+      }
+      
+      // Procesar respuesta
+      if (response.bot_response) {
+        addBotMessage(response.bot_response)
+      }
+      
+      // Mostrar quick replies si existen
+      if (response.quickReplies && response.quickReplies.length > 0) {
+        setTimeout(() => addQuickReplies(response.quickReplies), 500)
+      }
+      
+      // Mostrar menú si es necesario
+      else if (response.showMenu) {
+        setTimeout(() => showMainMenu(), 500)
+      }
+      
+      // Manejar acciones especiales
+      if (response.action === 'redirect_booking' || response.action === 'suggest_booking') {
+        setTimeout(() => {
+          addBotMessage('Te redirigiré a la página de reservas en 3 segundos...')
+          setTimeout(() => {
+            window.location.href = '/reservas.html'
+          }, 3000)
+        }, 1000)
+      }
+    }
+
+    // Event listeners
+    sendButton.addEventListener('click', handleSendMessage)
+    
+    chatInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        handleSendMessage()
+      }
+    })
+
+    // Inicializar chat
+    window.addEventListener('DOMContentLoaded', async () => {
+      // Crear sesión
+      await createSession()
+      
+      // Remover mensaje de bienvenida
+      setTimeout(() => {
+        document.querySelector('.welcome-message')?.remove()
+        
+        // Mensaje inicial
+        addBotMessage('¡Hola! Bienvenido a Serenità Spa 🌿')
+        
+        setTimeout(() => {
+          addBotMessage('¿Cómo te llamas?')
+          isWaitingForName = true
+          chatInput.focus()
+        }, 800)
+      }, 1000)
+    })
+  </script>
+
+</body>
+</html>

@@ -1,222 +1,206 @@
-# 🌿 Serenità Spa — Vanilla Stack
+# 🌿 Serenità Spa - Sistema de Gestión y Chat
 
-Sistema web completo para spa: **HTML + Tailwind + JS Vanilla + Node.js + Express**. Sin frameworks, sin bundlers, listo para producción.
+Sistema completo de gestión de citas y chat inteligente para Serenità Spa.
 
----
+## 🚀 Versión 2.0
 
-## 📁 Estructura
+Esta versión incluye mejoras significativas en el sistema de chat, correcciones críticas y nueva funcionalidad de cambio de fecha.
 
-```
-/
-├── frontend/
-│   ├── index.html          ← Landing page principal
-│   ├── servicios.html      ← Catálogo completo
-│   ├── reservas.html       ← Sistema de agendamiento 4 pasos
-│   ├── css/
-│   │   └── spa.css         ← Todos los estilos + design tokens
-│   └── js/
-│       ├── main.js         ← Navbar, WhatsApp, config global
-│       ├── animations.js   ← Intersection Observer, parallax, counters
-│       ├── services.js     ← Carga y renderiza servicios/testimonios
-│       └── bookings.js     ← Lógica completa de agendamiento
-│
-├── backend/
-│   ├── server.js           ← Servidor Express principal
-│   └── routes/
-│       ├── services.js     ← GET /api/services, testimonials
-│       ├── bookings.js     ← GET /api/slots, POST /api/bookings
-│       └── contact.js      ← POST /api/contact
-│
-├── data/
-│   ├── services.json       ← Servicios del spa (editable)
-│   └── testimonials.json   ← Reseñas de clientes (editable)
-│
-├── api/
-│   └── index.js            ← Serverless function para Vercel
-│
-├── vercel.json             ← Configuración de deploy
-└── package.json
-```
+### ✨ Novedades v2.0
+
+- ✅ Cambio de fecha de citas directamente en el chat
+- ✅ Corrección de reglas de negocio (horarios, domingos, buffer)
+- ✅ Corrección de zona horaria en fechas
+- ✅ Todos los horarios disponibles visibles (mañana y tarde)
+- ✅ Mejor experiencia de usuario
 
 ---
 
-## 🚀 Instalación y ejecución
+## 📚 Documentación
+
+La documentación completa está en [`docs/v2.0/`](docs/v2.0/):
+
+- **[README](docs/v2.0/README.md)** - Inicio rápido y resumen
+- **[Correcciones](docs/v2.0/correcciones/CORRECCIONES_V2.md)** - Todas las correcciones implementadas
+- **[Flujos del Chat](docs/v2.0/flujos/FLUJOS_CHAT.md)** - Diagramas y explicación de flujos
+- **[Guía de Pruebas](docs/v2.0/guias/GUIA_PRUEBAS.md)** - Cómo probar el sistema
+
+---
+
+## 🏃 Inicio Rápido
+
+### 1. Instalación
 
 ```bash
-# 1. Instalar dependencias
 npm install
+```
 
-# 2. Ejecutar en modo desarrollo
-npm run dev
-# → http://localhost:3000
+### 2. Configuración
 
-# Alternativa sin nodemon:
+Copia `.env.example` a `.env` y configura tus credenciales de Supabase:
+
+```env
+SUPABASE_URL=https://tu-proyecto.supabase.co
+SUPABASE_ANON_KEY=tu-anon-key
+PORT=3000
+```
+
+### 3. Ejecutar
+
+```bash
 npm start
 ```
 
-El servidor sirve el frontend estático en `/` y la API en `/api`.
+El servidor estará disponible en `http://localhost:3000`
 
 ---
 
-## 🎨 Personalización
+## 🎯 Características Principales
 
-### 👉 Logo y nombre del spa
-Abre `frontend/js/main.js` y cambia `SPA_CONFIG`:
-```js
-export const SPA_CONFIG = {
-  nombre:   'Serenità Spa',     // ← Nombre del spa
-  whatsapp: '573001234567',     // ← Número WhatsApp (sin + ni espacios)
-  apiBase:  '/api',
-}
-```
+### Sistema de Chat Inteligente
 
-También busca y reemplaza `Serenità Spa` en los archivos `.html`.
+- 💬 Consulta de citas por nombre y email
+- 🗓️ Cambio de fecha de citas (NUEVO en v2.0)
+- ❌ Cancelación de citas
+- 📋 Información de servicios
+- 📍 Horarios y ubicación
+- 🎁 Certificados de regalo
 
-### 👉 Colores de marca
-Abre `frontend/css/spa.css` y edita las variables en `:root`:
-```css
-:root {
-  --gold:   #C9A961;   /* Color dorado */
-  --forest: #2C4A2E;   /* Verde bosque */
-  --cream:  #FAF8F5;   /* Fondo crema */
-}
-```
+### Sistema de Reservas
 
-### 👉 Servicios y precios
-Edita `data/services.json`:
-```json
-{
-  "id": "1",
-  "nombre": "Nombre del servicio",
-  "descripcion": "Descripción atractiva",
-  "precio": 150000,
-  "duracion_min": 60,
-  "buffer_min": 10,
-  "imagen": "https://url-de-tu-imagen.jpg",
-  "categoria": "Masaje",
-  "activo": true
-}
-```
+- 📅 Calendario interactivo
+- ⏰ Selección de horarios disponibles
+- 💳 Gestión de servicios
+- 📧 Confirmación por email
 
-### 👉 Imágenes
-Reemplaza las URLs de Unsplash en `data/services.json` y en las galerías de `index.html` con las imágenes reales del spa.
+### Reglas de Negocio
 
-Puedes usar imágenes locales en `/frontend/assets/` o URLs externas.
-
-### 👉 WhatsApp
-En `frontend/js/main.js`:
-```js
-whatsapp: '573001234567',  // Colombia: 57 + número sin espacios
-```
-
-En los archivos HTML, busca `wa.me/573001234567` y reemplaza.
-
-### 👉 Horario del spa
-En `backend/routes/bookings.js`:
-```js
-const SCHEDULE = {
-  1: { start: '09:00', end: '18:00' }, // Lunes
-  2: { start: '09:00', end: '18:00' }, // Martes
-  // ...
-  6: { start: '09:00', end: '16:00' }, // Sábado
-  // El domingo (0) no aparece = cerrado
-}
-```
-
-### 👉 Información de contacto
-En `frontend/index.html`, busca la sección `#contacto` y actualiza:
-- Dirección
-- Teléfono
-- Horario
+- **Horarios**: Lun-Vie 9:00-18:00, Sáb 9:00-16:00, Dom CERRADO
+- **Slots**: Intervalos de 30 minutos
+- **Buffer**: 10 minutos entre citas
+- **Validación**: 24 horas de anticipación para cambios
 
 ---
 
-## 🚀 Deploy en Vercel
+## 🛠️ Stack Tecnológico
 
-### Opción A — Vercel CLI
+- **Backend**: Node.js + Express
+- **Base de datos**: Supabase (PostgreSQL)
+- **Frontend**: HTML + CSS + JavaScript vanilla
+- **Hosting**: Vercel
+
+---
+
+## 📁 Estructura del Proyecto
+
+```
+SpaOhDiosas/
+├── api/                    # API endpoints para Vercel
+├── backend/
+│   ├── lib/               # Configuración de Supabase
+│   ├── routes/            # Rutas de la API
+│   └── services/          # Lógica de negocio (chatbot, etc.)
+├── frontend/
+│   ├── css/               # Estilos
+│   ├── js/                # JavaScript del frontend
+│   └── *.html             # Páginas HTML
+├── database/
+│   └── migrations/        # Migraciones de BD
+├── docs/
+│   ├── v2.0/              # Documentación v2.0 (ACTUAL)
+│   └── archivo_v1/        # Documentación antigua
+├── data/                  # Datos estáticos (servicios, testimonios)
+├── .env                   # Variables de entorno (no en Git)
+├── .env.example           # Ejemplo de variables de entorno
+├── package.json           # Dependencias
+└── vercel.json            # Configuración de Vercel
+```
+
+---
+
+## 🧪 Pruebas
+
+Ver [Guía de Pruebas](docs/v2.0/guias/GUIA_PRUEBAS.md) para instrucciones detalladas.
+
+### Pruebas Rápidas
 
 ```bash
-# 1. Instalar Vercel CLI
-npm i -g vercel
+# Probar detección de intenciones
+node test_intent_detection.js
 
-# 2. Login
-vercel login
-
-# 3. Deploy
-vercel
-
-# 4. Para producción
-vercel --prod
-```
-
-### Opción B — GitHub + Vercel Dashboard
-
-1. Sube el proyecto a un repositorio de GitHub.
-2. Ve a [vercel.com](https://vercel.com) → New Project → Import desde GitHub.
-3. Framework Preset: **Other**.
-4. Deploy automático.
-
-El `vercel.json` incluido ya configura correctamente el frontend estático y la API serverless.
-
----
-
-## 🔌 API Endpoints
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| `GET` | `/api/services` | Lista todos los servicios activos |
-| `GET` | `/api/services/:id` | Obtiene un servicio por ID |
-| `POST` | `/api/services` | Crea un servicio (admin) |
-| `GET` | `/api/slots?servicio=id&fecha=YYYY-MM-DD` | Horarios disponibles |
-| `POST` | `/api/bookings` | Crear una cita |
-| `GET` | `/api/bookings/all?fecha=YYYY-MM-DD` | Ver citas (admin) |
-| `PATCH` | `/api/bookings/:id/status` | Actualizar estado de cita |
-| `GET` | `/api/testimonials` | Lista testimonios |
-| `POST` | `/api/contact` | Enviar mensaje de contacto |
-| `GET` | `/api/health` | Health check del servidor |
-
----
-
-## 🔁 Integración n8n (automatizaciones)
-
-En `backend/routes/bookings.js`, descomenta el bloque del webhook:
-
-```js
-if (process.env.N8N_WEBHOOK_URL) {
-  fetch(process.env.N8N_WEBHOOK_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cita, tipo: 'nueva_cita' }),
-  })
-}
-```
-
-Agrega la variable de entorno en Vercel:
-```
-N8N_WEBHOOK_URL=https://tu-n8n.com/webhook/nueva-cita
+# Verificar conexión a BD
+node database/migrations/test_connection.js
 ```
 
 ---
 
-## 🗄️ Migración a Supabase/PostgreSQL
+## 🚀 Deploy
 
-El proyecto está diseñado para escalar. Para migrar de JSON a Supabase:
+### Vercel
 
-1. Instala el cliente: `npm install @supabase/supabase-js`
-2. En cada route, reemplaza `readJSON(FILE)` por queries de Supabase:
-```js
-// Antes (JSON):
-const services = readJSON(SERVICES_FILE)
+El proyecto está configurado para deploy automático en Vercel:
 
-// Después (Supabase):
-const { data: services } = await supabase
-  .from('servicios')
-  .select('*')
-  .eq('activo', true)
+1. Conecta tu repositorio de GitHub a Vercel
+2. Configura las variables de entorno en Vercel
+3. Deploy automático en cada push a `main`
+
+### Variables de Entorno en Vercel
+
 ```
+SUPABASE_URL=https://tu-proyecto.supabase.co
+SUPABASE_ANON_KEY=tu-anon-key
+```
+
+---
+
+## 📝 Changelog
+
+### v2.0 (Abril 2026)
+
+#### Nuevas Funcionalidades
+- ✨ Cambio de fecha de citas en el chat
+
+#### Correcciones
+- 🐛 Botón "Consultar mis citas" funcionando correctamente
+- 🐛 Reglas de negocio implementadas correctamente
+- 🐛 Problema de zona horaria resuelto
+- 🐛 Horarios de tarde ahora visibles
+
+#### Mejoras
+- 📈 Mejor experiencia de usuario en el chat
+- 📈 Validación de disponibilidad en tiempo real
+- 📈 Código más mantenible y documentado
+
+### v1.0 (Marzo 2026)
+- 🎉 Lanzamiento inicial
+
+---
+
+## 🤝 Contribuir
+
+1. Lee la documentación en [`docs/v2.0/`](docs/v2.0/)
+2. Crea una rama para tu feature: `git checkout -b feature/nueva-funcionalidad`
+3. Haz commit de tus cambios: `git commit -m 'Agregar nueva funcionalidad'`
+4. Push a la rama: `git push origin feature/nueva-funcionalidad`
+5. Crea un Pull Request
+
+---
+
+## 📞 Contacto
+
+**Serenità Spa**  
+📍 Carrera 1 # 2-3, Riohacha, La Guajira, Colombia  
+📞 +57 300 123 4567  
+🌐 [serenita-spa.vercel.app](https://serenita-spa.vercel.app)
 
 ---
 
 ## 📄 Licencia
 
-MIT — Úsalo libremente para tu negocio.
+Este proyecto es privado y confidencial.
+
+---
+
+**Versión**: 2.0  
+**Estado**: ✅ Estable  
+**Última actualización**: Abril 2026

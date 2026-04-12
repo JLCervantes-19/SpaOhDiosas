@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Chat Button - Serenità Spa</title>
+  <link rel="stylesheet" href="css/spa.css">
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #FAF8F5 0%, #F0EDE6 100%);
+      font-family: 'Jost', sans-serif;
+    }
+    .test-container {
+      text-align: center;
+      padding: 40px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      max-width: 600px;
+    }
+    h1 {
+      color: #2C4A2E;
+      margin-bottom: 20px;
+    }
+    .status {
+      margin: 20px 0;
+      padding: 12px;
+      border-radius: 8px;
+      background: #f0f0f0;
+    }
+    .status.open {
+      background: #d4edda;
+      color: #155724;
+    }
+    .status.closed {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    button {
+      margin: 10px;
+      padding: 12px 24px;
+      border: 2px solid #C9A961;
+      background: white;
+      color: #2C4A2E;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+    button:hover {
+      background: #C9A961;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-container">
+    <h1>🧪 Test Chat Button</h1>
+    <p>Prueba del componente ChatButton para Serenità Spa</p>
+    
+    <div id="status" class="status">
+      Estado: <strong id="status-text">Cerrado</strong>
+    </div>
+    
+    <div>
+      <button onclick="testOpen()">Abrir Chat</button>
+      <button onclick="testClose()">Cerrar Chat</button>
+      <button onclick="testToggle()">Toggle Chat</button>
+      <button onclick="testShowBadge()">Mostrar Badge</button>
+      <button onclick="testHideBadge()">Ocultar Badge</button>
+    </div>
+    
+    <div style="margin-top: 20px; font-size: 0.9rem; color: #666;">
+      <p><strong>Verificaciones:</strong></p>
+      <ul style="text-align: left; display: inline-block;">
+        <li>✅ Botón flotante en esquina inferior derecha</li>
+        <li>✅ Color verde bosque (#2C4A2E) con borde dorado</li>
+        <li>✅ Animación pulse continua</li>
+        <li>✅ Badge "1" aparece después de 3 segundos</li>
+        <li>✅ Icono cambia entre chat y close</li>
+        <li>✅ Eventos chat:open y chat:close se disparan</li>
+      </ul>
+    </div>
+  </div>
+
+  <script type="module">
+    import { ChatButton } from './js/chat.js'
+
+    // Crear instancia del botón
+    const chatButton = new ChatButton()
+    chatButton.render()
+
+    // Escuchar eventos
+    window.addEventListener('chat:open', () => {
+      document.getElementById('status').className = 'status open'
+      document.getElementById('status-text').textContent = 'Abierto'
+      console.log('✅ Evento chat:open disparado')
+    })
+
+    window.addEventListener('chat:close', () => {
+      document.getElementById('status').className = 'status closed'
+      document.getElementById('status-text').textContent = 'Cerrado'
+      console.log('✅ Evento chat:close disparado')
+    })
+
+    // Funciones de prueba
+    window.testOpen = () => {
+      chatButton.open()
+      console.log('🔵 Llamado: chatButton.open()')
+    }
+
+    window.testClose = () => {
+      chatButton.close()
+      console.log('🔵 Llamado: chatButton.close()')
+    }
+
+    window.testToggle = () => {
+      chatButton.toggle()
+      console.log('🔵 Llamado: chatButton.toggle()')
+    }
+
+    window.testShowBadge = () => {
+      chatButton.showBadge('1')
+      console.log('🔵 Llamado: chatButton.showBadge("1")')
+    }
+
+    window.testHideBadge = () => {
+      chatButton.hideBadge()
+      console.log('🔵 Llamado: chatButton.hideBadge()')
+    }
+
+    console.log('✅ ChatButton renderizado correctamente')
+    console.log('⏱️ Badge aparecerá en 3 segundos...')
+  </script>
+</body>
+</html>

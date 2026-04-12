@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Chat Directo</title>
+  <link rel="stylesheet" href="css/spa.css?v=2">
+  <style>
+    body {
+      background: #FAF8F5;
+      font-family: 'Jost', sans-serif;
+      padding: 40px 20px;
+    }
+    .test-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #2C4A2E;
+      margin-bottom: 20px;
+    }
+    .status {
+      padding: 15px;
+      border-radius: 8px;
+      margin: 10px 0;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .status.info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    .instructions {
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    .instructions h3 {
+      margin-top: 0;
+      color: #856404;
+    }
+    .instructions ul {
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+    .instructions li {
+      margin: 5px 0;
+    }
+  </style>
+</head>
+<body>
+  
+  <div class="test-container">
+    <h1>🧪 Test del Chatbot - Diagnóstico</h1>
+    
+    <div class="instructions">
+      <h3>📋 Instrucciones:</h3>
+      <ul>
+        <li>Esta página carga el chatbot directamente</li>
+        <li>Deberías ver un botón verde en la esquina inferior derecha</li>
+        <li>Los mensajes de estado aparecerán abajo</li>
+        <li>Abre la consola del navegador (F12) para ver más detalles</li>
+      </ul>
+    </div>
+
+    <div id="status-container">
+      <div class="status info">⏳ Iniciando prueba del chatbot...</div>
+    </div>
+  </div>
+
+  <!-- Chat Container -->
+  <div id="chat-container"></div>
+
+  <script type="module">
+    const statusContainer = document.getElementById('status-container')
+    
+    function addStatus(message, type = 'info') {
+      const div = document.createElement('div')
+      div.className = `status ${type}`
+      div.textContent = message
+      statusContainer.appendChild(div)
+      console.log(`[${type.toUpperCase()}]`, message)
+    }
+
+    // Inicializar chat
+    document.addEventListener('DOMContentLoaded', async () => {
+      addStatus('✅ DOM cargado', 'success')
+      
+      try {
+        addStatus('📦 Importando módulo chat.js...', 'info')
+        const chatModule = await import('./js/chat.js?v=' + Date.now())
+        addStatus('✅ Módulo chat.js importado correctamente', 'success')
+        
+        addStatus('🔧 Inicializando chat...', 'info')
+        const { initChat } = chatModule
+        
+        if (typeof initChat !== 'function') {
+          throw new Error('initChat no es una función')
+        }
+        
+        const chat = initChat()
+        addStatus('✅ Chat inicializado correctamente', 'success')
+        addStatus(`📊 Componentes: ${Object.keys(chat).join(', ')}`, 'info')
+        
+        // Verificar que el botón se renderizó
+        setTimeout(() => {
+          const button = document.getElementById('chat-btn')
+          if (button) {
+            addStatus('✅ Botón de chat encontrado en el DOM', 'success')
+            addStatus('🎉 ¡El chatbot está funcionando! Busca el botón verde en la esquina inferior derecha', 'success')
+          } else {
+            addStatus('❌ Botón de chat NO encontrado en el DOM', 'error')
+          }
+        }, 500)
+        
+      } catch (error) {
+        addStatus(`❌ Error: ${error.message}`, 'error')
+        addStatus(`📍 Stack: ${error.stack}`, 'error')
+        console.error('Error completo:', error)
+      }
+    })
+  </script>
+
+</body>
+</html>

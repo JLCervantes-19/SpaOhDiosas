@@ -11,6 +11,7 @@ const path     = require('path')
 const servicesRouter  = require('./routes/services')
 const bookingsRouter  = require('./routes/bookings')
 const contactRouter   = require('./routes/contact')
+const chatRouter      = require('./routes/chat')
 
 const app  = express()
 const PORT = process.env.PORT ?? 3000
@@ -31,6 +32,7 @@ app.use(express.static(path.join(__dirname, '../frontend')))
 app.use('/api/services',      servicesRouter)
 app.use('/api/bookings',      bookingsRouter)
 app.use('/api/contact',       contactRouter)
+app.use('/api/chat',          chatRouter)
 app.use('/api/slots',         bookingsRouter)   // re-usa el router (tiene /slots)
 
 // Testimonials - endpoint separado

@@ -99,6 +99,9 @@ router.post('/', async (req, res) => {
   // Primero, crear o buscar el cliente
   let cliente_id = null
   
+  // Normalizar email a minúsculas
+  const emailNormalizado = email ? email.toLowerCase().trim() : ''
+  
   // Buscar si el cliente ya existe por teléfono
   const { data: clienteExistente } = await supabase
     .from('clientes')
@@ -108,14 +111,22 @@ router.post('/', async (req, res) => {
   
   if (clienteExistente) {
     cliente_id = clienteExistente.id
+    
+    // Actualizar email si se proporcionó uno nuevo
+    if (emailNormalizado) {
+      await supabase
+        .from('clientes')
+        .update({ email: emailNormalizado })
+        .eq('id', cliente_id)
+    }
   } else {
-    // Crear nuevo cliente
+    // Crear nuevo cliente con email en minúsculas
     const { data: nuevoCliente, error: clienteError } = await supabase
       .from('clientes')
       .insert({
         nombre,
         telefono,
-        email: email ?? '',
+        email: emailNormalizado,
         origen: origen ?? 'web'
       })
       .select()
