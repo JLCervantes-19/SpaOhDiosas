@@ -7,6 +7,34 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [2.0.1] - 2026-04-12
+
+### 🔧 Corregido
+
+- **Responsividad móvil del chat**: Chat se descuadraba cuando aparecía/desaparecía el teclado
+  - Implementado viewport mejorado con `maximum-scale` y `viewport-fit`
+  - Fix específico para iOS Safari con `-webkit-fill-available`
+  - JavaScript para manejar resize del viewport dinámicamente
+  - Scroll suave cuando aparece/desaparece el teclado
+  - Prevención de zoom accidental
+
+### 📈 Mejorado
+
+- **Elementos más compactos en móvil**: Mejor uso del espacio en pantalla
+  - Header: padding 20px → 16px, avatar 56px → 48px
+  - Mensajes: padding reducido, font 0.95rem → 0.9rem
+  - Quick replies: más compactos, mejor espaciado
+  - Input: altura mínima 44px para mejor touch
+
+### 🎯 Beneficios
+
+- Chat estable con teclado móvil
+- Mejor UX en dispositivos móviles
+- Compatible con iOS Safari
+- Sin zoom accidental
+
+---
+
 ## [2.0.0] - 2026-04-12
 
 ### ✨ Agregado
