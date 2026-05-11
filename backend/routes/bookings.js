@@ -7,6 +7,19 @@ const supabase = require('../lib/supabase')
 
 const router = express.Router()
 
+// Middleware de autenticación para endpoints de administración
+function requireAdmin(req, res, next) {
+  const adminToken = process.env.ADMIN_TOKEN
+  if (!adminToken) {
+    return res.status(403).json({ error: 'Acceso de administrador no configurado' })
+  }
+  const provided = req.headers['x-admin-token'] || req.query.admin_token
+  if (provided !== adminToken) {
+    return res.status(401).json({ error: 'Token de administrador inválido' })
+  }
+  next()
+}
+
 // Horario del spa: Lunes–Viernes 9–18, Sábado 9–16
 // 👉 Aquí puedes modificar el horario del spa
 const SCHEDULE = {
@@ -132,7 +145,7 @@ router.post('/', async (req, res) => {
       .select()
       .single()
     
-    if (clienteError) return res.status(500).json({ error: 'Error al crear cliente: ' + clienteError.message })
+    if (clienteError) return res.status(500).json({ error: 'Error al registrar cliente' })
     cliente_id = nuevoCliente.id
   }
 
@@ -182,7 +195,7 @@ router.post('/', async (req, res) => {
     .select()
     .single()
 
-  if (citaError) return res.status(500).json({ error: citaError.message })
+  if (citaError) return res.status(500).json({ error: 'Error al crear la reserva' })
 
   // ——— WEBHOOK n8n (preparado) ————————————————————————————
   // 👉 Descomenta para enviar notificaciones automáticas por WhatsApp
@@ -208,7 +221,7 @@ router.post('/', async (req, res) => {
 })
 
 // ——— GET /api/bookings (admin) ———————————————————————————
-router.get('/all', async (req, res) => {
+router.get('/all', requireAdmin, async (req, res) => {
   const { fecha } = req.query
   
   // Hacer join con clientes y servicios para obtener toda la info
@@ -232,7 +245,7 @@ router.get('/all', async (req, res) => {
 // ——— PATCH /api/bookings/:id/status —————————————————————
 // Actualizar estado de una cita
 // Estados válidos: 'confirmada', 'cancelada', 'asistio', 'no_asistio'
-router.patch('/:id/status', async (req, res) => {
+router.patch('/:id/status', requireAdmin, async (req, res) => {
   const { estado } = req.body
   
   // Validar que el estado sea válido

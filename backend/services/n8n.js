@@ -10,48 +10,33 @@
 class N8NService {
   constructor(webhookUrl = null) {
     this.webhookUrl = webhookUrl || process.env.N8N_CHAT_WEBHOOK;
-    this.timeout = 5000; // 5 seconds timeout
+    this.timeout = 15000; // 15s — workflows en Render pueden tardar en arrancar
   }
 
-  /**
-   * Check if N8N webhook is configured
-   * @returns {boolean} True if webhook URL is configured
-   */
   isConfigured() {
     return Boolean(this.webhookUrl && this.webhookUrl.trim() !== '');
   }
 
-  /**
-   * Send message to N8N webhook
-   * @param {string} sessionId - Chat session UUID
-   * @param {string} userName - User's name
-   * @param {string} message - User's message text
-   * @returns {Promise<{response: string, suggestions?: string[]}>} N8N response
-   * @throws {Error} If webhook is not configured or request fails
-   */
-  async sendMessage(sessionId, userName, message, step = 'inicio', userDoc = null) {
+  async sendMessage(sessionId, userName, message) {
     if (!this.isConfigured()) {
       throw new Error('N8N webhook is not configured');
     }
 
-    // Formato adaptado a tu flujo de N8N
+    // El workflow n8n espera el campo "chatInput" en el nodo "Parse Input"
     const payload = {
-      sessionId: sessionId,      // Tu flujo usa "sessionId" (camelCase)
-      userName: userName,         // Tu flujo usa "userName"
-      mensaje: message,           // Tu flujo usa "mensaje"
-      step: step,                 // Estado conversacional
-      userDoc: userDoc            // Documento del usuario (si está disponible)
+      sessionId,
+      userName: userName || 'Usuario',
+      chatInput: message,
+      mensaje: message  // compatibilidad con versiones anteriores
     };
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
+    try {
       const response = await fetch(this.webhookUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
         signal: controller.signal
       });
@@ -63,37 +48,24 @@ class N8NService {
       }
 
       const data = await response.json();
-      
-      // Tu flujo de N8N puede retornar diferentes formatos
-      // Adaptamos para manejar: text, servicios, citas, showMenu
-      let botResponse = '';
-      let responseData = {};
 
-      if (data.text) {
-        // Respuesta de texto simple
-        botResponse = data.text;
-        responseData.showMenu = data.showMenu || false;
-      } else if (data.servicios) {
-        // Respuesta con lista de servicios
-        botResponse = 'Aquí están nuestros servicios disponibles:';
-        responseData.servicios = data.servicios;
-      } else if (data.citas) {
-        // Respuesta con lista de citas
-        botResponse = data.citas.length > 0 
-          ? 'Estas son tus citas:' 
-          : 'No encontré citas asociadas a ese documento.';
-        responseData.citas = data.citas;
-      } else {
-        throw new Error('Invalid response format from N8N webhook');
-      }
+      // Soporte para múltiples formatos de respuesta de N8N
+      const botResponse =
+        data.text ||
+        data.output ||
+        data.message ||
+        data.respuesta ||
+        (typeof data === 'string' ? data : null) ||
+        'No pude procesar tu mensaje. Por favor intenta de nuevo.';
 
       return {
         response: botResponse,
-        data: responseData,
-        suggestions: data.suggestions || []
+        quickReplies: data.quickReplies || data.opciones || data.suggestions || [],
+        data: data.data || {}
       };
 
     } catch (error) {
+      clearTimeout(timeoutId);
       if (error.name === 'AbortError') {
         throw new Error('N8N webhook request timed out');
       }

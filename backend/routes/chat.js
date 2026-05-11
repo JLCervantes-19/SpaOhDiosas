@@ -5,12 +5,10 @@
 const express = require('express')
 const supabase = require('../lib/supabase')
 const { v4: uuidv4 } = require('uuid')
-const ChatbotService = require('../services/chatbot')
+const N8NService = require('../services/n8n')
 
 const router = express.Router()
-
-// Initialize Chatbot service (sin N8N)
-const chatbot = new ChatbotService()
+const n8n = new N8NService()
 
 // ——— POST /api/chat/session ———————————————————————————————
 // Creates a new chat session in Supabase
@@ -42,119 +40,54 @@ router.post('/session', async (req, res) => {
 })
 
 // ——— POST /api/chat/message ————————————————————————————————
-// Processes user message and returns bot response
-// USA CHATBOT LOCAL - SIN N8N
-// Body: {session_id, user_name?, message, message_type?, step?, user_doc?}
-// Returns: {bot_response, data?, quick_replies?, showMenu?}
+// Recibe mensaje del usuario, lo reenvía a N8N y retorna la respuesta
+// Body: {session_id, user_name?, message}
+// Returns: {bot_response, quickReplies?}
 router.post('/message', async (req, res) => {
   try {
-    const { session_id, user_name, message, message_type, step, user_doc } = req.body
+    const { session_id, user_name, message } = req.body
 
-    // Validate required fields
     if (!session_id || !message) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Faltan campos requeridos',
         message: 'session_id y message son obligatorios'
       })
     }
 
-    // Save user message to database
-    const { error: messageError } = await supabase
-      .from('chat_messages')
-      .insert({
-        session_id,
-        sender: 'user',
-        content: message,
-        message_type: message_type || 'text',
-        created_at: new Date().toISOString()
+    if (typeof message !== 'string' || message.length > 1000) {
+      return res.status(400).json({
+        error: 'Mensaje inválido',
+        message: 'El mensaje no puede superar los 1000 caracteres'
       })
-
-    if (messageError) {
-      console.error('Error saving user message:', messageError)
-      // Non-critical error, continue processing
     }
 
-    // Procesar mensaje con el chatbot local PRIMERO para obtener el userName
-    const context = { 
-      userName: user_name,
-      tempName: req.body.temp_name,  // Para el flujo de consultar citas
-      citas: req.body.citas,  // Para el flujo de gestión de citas
-      selectedCita: req.body.selectedCita,  // Para el flujo de cambio de fecha
-      availableDays: req.body.availableDays,  // Días disponibles
-      selectedDay: req.body.selectedDay,  // Día seleccionado
-      availableTimes: req.body.availableTimes  // Horarios disponibles
-    };
-    const botResponse = await chatbot.processMessage(
-      session_id,
-      user_name || 'Usuario',
-      message,
-      step || 'initial',
-      context
-    );
-
-    // Si el bot retorna un userName o tempName, usarlo para actualizar la sesión
-    const finalUserName = botResponse.userName || user_name;
-    const tempName = botResponse.tempName;
-
-    // Update last_activity in session con el nombre correcto
-    const updateData = { 
-      last_activity: new Date().toISOString(),
-      ...(finalUserName && { user_name: finalUserName })
-    };
-    
-    // Guardar tempName en metadata si existe
-    if (tempName) {
-      updateData.metadata = { tempName };
+    if (!n8n.isConfigured()) {
+      return res.status(503).json({
+        bot_response: 'El chatbot no está disponible en este momento. Contáctanos por WhatsApp.',
+        error: 'N8N_NOT_CONFIGURED'
+      })
     }
 
-    const { error: sessionError } = await supabase
-      .from('chat_sessions')
-      .update(updateData)
+    // Enviar a N8N
+    const n8nResponse = await n8n.sendMessage(session_id, user_name, message)
+
+    // Actualizar actividad de la sesión (no crítico)
+    supabase.from('chat_sessions')
+      .update({ last_activity: new Date().toISOString(), ...(user_name && { user_name }) })
       .eq('session_id', session_id)
+      .then(({ error }) => { if (error) console.error('Error updating session:', error) })
 
-    if (sessionError) {
-      console.error('Error updating session:', sessionError)
-      // Non-critical error, continue processing
-    }
-
-    // Save bot response to database
-    const { error: botMessageError } = await supabase
-      .from('chat_messages')
-      .insert({
-        session_id,
-        sender: 'bot',
-        content: botResponse.response,
-        message_type: 'text',
-        created_at: new Date().toISOString(),
-        metadata: botResponse.data || {}
-      })
-
-    if (botMessageError) {
-      console.error('Error saving bot message:', botMessageError)
-      // Non-critical error, still return response to user
-    }
-
-    // Return bot response con el userName, tempName y quickReplies
     res.status(200).json({
-      bot_response: botResponse.response,
-      showMenu: botResponse.showMenu || false,
-      nextState: botResponse.nextState,
-      action: botResponse.action,
-      data: botResponse.data,
-      userName: botResponse.userName || finalUserName,
-      tempName: botResponse.tempName,
-      quickReplies: botResponse.quickReplies,
-      selectedCita: botResponse.selectedCita,
-      availableDays: botResponse.availableDays,
-      selectedDay: botResponse.selectedDay,
-      availableTimes: botResponse.availableTimes
+      bot_response: n8nResponse.response,
+      quickReplies: n8nResponse.quickReplies || [],
+      data: n8nResponse.data || {}
     })
 
   } catch (err) {
     console.error('Unexpected error in POST /api/chat/message:', err)
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Error procesando mensaje',
-      message: 'Ocurrió un error inesperado. Por favor intenta de nuevo.'
+      bot_response: 'Ocurrió un error inesperado. Por favor intenta de nuevo.'
     })
   }
 })

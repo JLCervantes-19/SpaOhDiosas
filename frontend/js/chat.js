@@ -449,19 +449,43 @@ function createQuickReplies(options) {
 function createServiceCard(service) {
   const card = document.createElement('div')
   card.className = 'service-card'
-  
-  card.innerHTML = `
-    <div class="service-card-image" style="background-image: url('${service.imagen_url || 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=400&q=80'}')"></div>
-    <div class="service-card-content">
-      <h4 class="service-card-title">${service.nombre}</h4>
-      <p class="service-card-description">${service.descripcion || ''}</p>
-      <div class="service-card-footer">
-        <span class="service-card-price">$${service.precio?.toLocaleString() || 'N/A'}</span>
-        <span class="service-card-duration">${service.duracion_min || 0} min</span>
-      </div>
-    </div>
-  `
-  
+
+  const imgDiv = document.createElement('div')
+  imgDiv.className = 'service-card-image'
+  const fallbackUrl = 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=400&q=80'
+  const safeUrl = /^https?:\/\//.test(service.imagen_url || '') ? service.imagen_url : fallbackUrl
+  imgDiv.style.backgroundImage = `url('${safeUrl}')`
+
+  const contentDiv = document.createElement('div')
+  contentDiv.className = 'service-card-content'
+
+  const title = document.createElement('h4')
+  title.className = 'service-card-title'
+  title.textContent = service.nombre
+
+  const desc = document.createElement('p')
+  desc.className = 'service-card-description'
+  desc.textContent = service.descripcion || ''
+
+  const footer = document.createElement('div')
+  footer.className = 'service-card-footer'
+
+  const price = document.createElement('span')
+  price.className = 'service-card-price'
+  price.textContent = `$${service.precio?.toLocaleString() || 'N/A'}`
+
+  const duration = document.createElement('span')
+  duration.className = 'service-card-duration'
+  duration.textContent = `${service.duracion_min || 0} min`
+
+  footer.appendChild(price)
+  footer.appendChild(duration)
+  contentDiv.appendChild(title)
+  contentDiv.appendChild(desc)
+  contentDiv.appendChild(footer)
+  card.appendChild(imgDiv)
+  card.appendChild(contentDiv)
+
   return card
 }
 
@@ -473,8 +497,7 @@ function createServiceCard(service) {
 function createAppointmentCard(appointment) {
   const card = document.createElement('div')
   card.className = 'appointment-card'
-  
-  // Determinar color según estado
+
   const estadoColors = {
     'confirmada': '#4ade80',
     'pendiente': '#fbbf24',
@@ -482,19 +505,46 @@ function createAppointmentCard(appointment) {
     'completada': '#8b5cf6'
   }
   const estadoColor = estadoColors[appointment.estado] || '#6b7280'
-  
-  card.innerHTML = `
-    <div class="appointment-card-header">
-      <span class="appointment-badge" style="background-color: ${estadoColor}">${appointment.estado}</span>
-      <span class="appointment-date">${appointment.fecha}</span>
-    </div>
-    <div class="appointment-card-body">
-      <h4 class="appointment-service">${appointment.servicio_nombre}</h4>
-      <p class="appointment-time">⏰ ${appointment.hora_inicio} - ${appointment.hora_fin}</p>
-      ${appointment.notas ? `<p class="appointment-notes">📝 ${appointment.notas}</p>` : ''}
-    </div>
-  `
-  
+
+  const header = document.createElement('div')
+  header.className = 'appointment-card-header'
+
+  const badge = document.createElement('span')
+  badge.className = 'appointment-badge'
+  badge.style.backgroundColor = estadoColor
+  badge.textContent = appointment.estado
+
+  const dateSpan = document.createElement('span')
+  dateSpan.className = 'appointment-date'
+  dateSpan.textContent = appointment.fecha
+
+  header.appendChild(badge)
+  header.appendChild(dateSpan)
+
+  const body = document.createElement('div')
+  body.className = 'appointment-card-body'
+
+  const serviceName = document.createElement('h4')
+  serviceName.className = 'appointment-service'
+  serviceName.textContent = appointment.servicio_nombre
+
+  const time = document.createElement('p')
+  time.className = 'appointment-time'
+  time.textContent = `⏰ ${appointment.hora_inicio} - ${appointment.hora_fin}`
+
+  body.appendChild(serviceName)
+  body.appendChild(time)
+
+  if (appointment.notas) {
+    const notes = document.createElement('p')
+    notes.className = 'appointment-notes'
+    notes.textContent = `📝 ${appointment.notas}`
+    body.appendChild(notes)
+  }
+
+  card.appendChild(header)
+  card.appendChild(body)
+
   return card
 }
 
@@ -519,410 +569,112 @@ function createTypingIndicator() {
 // CHAT MANAGER - Business Logic
 // ============================================================
 
-/**
- * ChatManager - Maneja la lógica de negocio del chat
- * 
- * Responsabilidades:
- * - Gestionar sesiones de chat
- * - Enviar/recibir mensajes del backend
- * - Manejar flujos conversacionales
- * - Integrar con API de backend
- * - Persistir estado en localStorage
- * 
- * Requirements: 11.6, 4.1, 4.2, 4.3, 4.4, 4.6, 5.1, 6.1, 7.1, 7.2, 8.1, 9.1
- */
 class ChatManager {
   constructor(chatPanel) {
     this.panel = chatPanel
     this.sessionId = null
     this.userName = null
-    this.currentStep = 'inicio'
     this.apiBaseUrl = '/api/chat'
-    
-    // Cargar sesión desde localStorage
+
     this.loadSession()
-    
-    // Event listeners
+
     window.addEventListener('chat:send', (e) => this.handleUserMessage(e.detail.message))
-    window.addEventListener('chat:quickreply', (e) => this.handleQuickReply(e.detail.option))
+    // Los quick replies se tratan como mensajes normales → van a N8N
+    window.addEventListener('chat:quickreply', (e) => this.handleUserMessage(e.detail.option))
   }
 
-  /**
-   * Inicializa la sesión de chat
-   */
   async initSession() {
     try {
-      // Si ya hay una sesión, no crear una nueva
       if (this.sessionId) {
+        // Sesión existente: dejar que N8N maneje el saludo de bienvenida
+        await this.sendToBackend('__init__')
         return this.sessionId
       }
 
-      const sessionId = await this.createSession()
-      this.sessionId = sessionId
+      const response = await fetch(`${this.apiBaseUrl}/session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      if (!response.ok) throw new Error('Failed to create session')
+
+      const data = await response.json()
+      this.sessionId = data.session_id
       this.saveSession()
-      
-      // Iniciar conversación
-      await this.startConversation()
-      
-      return sessionId
+
+      // Trigger inicial → N8N responde con el saludo
+      await this.sendToBackend('__init__')
+
+      return this.sessionId
     } catch (error) {
       console.error('Error initializing session:', error)
       this.panel.addMessage('Lo siento, hubo un error al iniciar el chat. Por favor intenta de nuevo.', 'bot')
     }
   }
 
-  /**
-   * Crea una nueva sesión en el backend
-   * @returns {Promise<string>} Session ID
-   */
-  async createSession() {
-    try {
-      const response = await fetch(`${this.apiBaseUrl}/session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to create session')
-      }
-
-      const data = await response.json()
-      return data.session_id
-    } catch (error) {
-      console.error('Error creating session:', error)
-      throw error
-    }
-  }
-
-  /**
-   * Inicia la conversación con mensaje de bienvenida
-   */
-  async startConversation() {
-    this.panel.addMessage('¡Hola! Bienvenido a Serenità Spa 🌿', 'bot')
-    
-    setTimeout(() => {
-      this.panel.addMessage('¿Cómo te llamas?', 'bot')
-    }, 800)
-  }
-
-  /**
-   * Maneja mensajes del usuario
-   * @param {string} message - Mensaje del usuario
-   */
   async handleUserMessage(message) {
-    // Agregar mensaje del usuario al chat
     this.panel.addMessage(message, 'user')
 
-    // Si no tenemos nombre de usuario, guardarlo
-    if (!this.userName) {
-      this.userName = message
-      this.saveSession()
-      
-      this.panel.showTypingIndicator()
-      setTimeout(() => {
-        this.panel.hideTypingIndicator()
-        this.panel.addMessage(`¡Encantado de conocerte, ${this.userName}! 😊`, 'bot')
-        
-        setTimeout(() => {
-          this.showMainMenu()
-        }, 1000)
-      }, 1500)
-      
-      return
-    }
-
-    // Enviar mensaje al backend (N8N)
     try {
       this.panel.showTypingIndicator()
-      
-      const response = await this.sendMessageToAPI(message)
-      
+      const response = await this.sendToBackend(message)
       this.panel.hideTypingIndicator()
-      
-      // Procesar respuesta
       this.processResponse(response)
-      
     } catch (error) {
       this.panel.hideTypingIndicator()
       console.error('Error sending message:', error)
-      this.panel.addMessage('Lo siento, hubo un error al procesar tu mensaje. Por favor intenta de nuevo o contacta directamente al +57 300 123 4567.', 'bot')
+      this.panel.addMessage('Lo siento, hubo un error. Por favor intenta de nuevo.', 'bot')
     }
   }
 
-  /**
-   * Maneja quick replies
-   * @param {string} option - Opción seleccionada
-   */
-  async handleQuickReply(option) {
-    // Agregar como mensaje del usuario
-    this.panel.addMessage(option, 'user')
-
-    // Procesar según la opción
-    if (option === 'Ver servicios') {
-      await this.handleServiceInquiry()
-    } else if (option === 'Agendar cita') {
-      await this.handleBookingInquiry()
-    } else if (option === 'Consultar mis citas') {
-      await this.handleAppointmentInquiry()
-    } else if (option === 'Horarios y ubicación') {
-      await this.handleScheduleInfo()
-    } else if (option === 'Certificados de regalo') {
-      await this.handleGiftCertificates()
-    } else if (option === 'Volver al menú') {
-      this.showMainMenu()
-    } else {
-      // Enviar al backend como mensaje normal
-      await this.handleUserMessage(option)
-    }
-  }
-
-  /**
-   * Muestra el menú principal
-   */
-  showMainMenu() {
-    this.panel.addMessage('¿En qué puedo ayudarte hoy?', 'bot')
-    
-    const options = [
-      'Ver servicios',
-      'Agendar cita',
-      'Consultar mis citas',
-      'Horarios y ubicación',
-      'Certificados de regalo'
-    ]
-    
-    this.panel.addQuickReplies(options)
-  }
-
-  /**
-   * Maneja consulta de servicios
-   */
-  async handleServiceInquiry() {
-    try {
-      this.panel.showTypingIndicator()
-      
-      const services = await this.getServices()
-      
-      this.panel.hideTypingIndicator()
-      
-      if (services && services.length > 0) {
-        this.panel.addMessage('Estos son nuestros servicios disponibles:', 'bot')
-        this.panel.addServiceCards(services)
-        
-        setTimeout(() => {
-          this.panel.addMessage('¿Te gustaría agendar alguno de estos servicios?', 'bot')
-          this.panel.addQuickReplies(['Agendar cita', 'Volver al menú'])
-        }, 1000)
-      } else {
-        this.panel.addMessage('Lo siento, no pude cargar los servicios en este momento. Por favor intenta de nuevo.', 'bot')
-      }
-    } catch (error) {
-      this.panel.hideTypingIndicator()
-      console.error('Error fetching services:', error)
-      this.panel.addMessage('Hubo un error al consultar los servicios. Por favor intenta de nuevo.', 'bot')
-    }
-  }
-
-  /**
-   * Maneja consulta de reserva
-   */
-  async handleBookingInquiry() {
-    this.panel.addMessage('Para agendar una cita, te voy a redirigir a nuestro sistema de reservas en línea.', 'bot')
-    
-    setTimeout(() => {
-      this.panel.addMessage('Haz clic aquí para continuar: <a href="/reservas.html" target="_blank" style="color: #C9A961; text-decoration: underline;">Ir a Reservas</a>', 'bot')
-      this.panel.addQuickReplies(['Volver al menú'])
-    }, 1000)
-  }
-
-  /**
-   * Maneja consulta de citas
-   */
-  async handleAppointmentInquiry() {
-    this.panel.addMessage('Para consultar tus citas, necesito tu número de documento.', 'bot')
-    this.panel.addMessage('Por favor escribe tu número de documento (cédula o pasaporte):', 'bot')
-    
-    // Cambiar el step para que el próximo mensaje sea procesado como documento
-    this.currentStep = 'waiting_documento'
-  }
-
-  /**
-   * Maneja información de horarios
-   */
-  async handleScheduleInfo() {
-    this.panel.addMessage('📍 Estamos ubicados en:', 'bot')
-    this.panel.addMessage('Carrera 1 # 2-3, Riohacha, La Guajira, Colombia', 'bot')
-    
-    setTimeout(() => {
-      this.panel.addMessage('🕐 Nuestros horarios de atención:', 'bot')
-      this.panel.addMessage('Lunes a Sábado: 9:00 AM - 7:00 PM', 'bot')
-    }, 1000)
-    
-    setTimeout(() => {
-      this.panel.addMessage('📞 Teléfono: +57 300 123 4567', 'bot')
-      this.panel.addQuickReplies(['Volver al menú'])
-    }, 2000)
-  }
-
-  /**
-   * Maneja información de certificados de regalo
-   */
-  async handleGiftCertificates() {
-    this.panel.addMessage('🎁 ¡Los certificados de regalo son el detalle perfecto!', 'bot')
-    
-    setTimeout(() => {
-      this.panel.addMessage('Puedes regalar cualquiera de nuestros servicios. Para más información, contáctanos al +57 300 123 4567 o escríbenos por WhatsApp.', 'bot')
-      this.panel.addQuickReplies(['Ver servicios', 'Volver al menú'])
-    }, 1500)
-  }
-
-  /**
-   * Envía mensaje al backend
-   * @param {string} message - Mensaje a enviar
-   * @returns {Promise<Object>} Respuesta del backend
-   */
-  async sendMessageToAPI(message) {
-    try {
-      const response = await fetch(`${this.apiBaseUrl}/message`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          session_id: this.sessionId,
-          user_name: this.userName,
-          message: message,
-          message_type: 'text',
-          step: this.currentStep
-        })
+  async sendToBackend(message) {
+    const response = await fetch(`${this.apiBaseUrl}/message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: this.sessionId,
+        user_name: this.userName,
+        message
       })
+    })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Error sending message')
-      }
-
-      const data = await response.json()
-      return data
-    } catch (error) {
-      console.error('Error in sendMessageToAPI:', error)
-      throw error
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.message || 'Error sending message')
     }
+
+    return response.json()
   }
 
-  /**
-   * Obtiene servicios del backend
-   * @returns {Promise<Array>} Array de servicios
-   */
-  async getServices() {
-    try {
-      const response = await fetch(`${this.apiBaseUrl}/services`)
-      
-      if (!response.ok) {
-        throw new Error('Error fetching services')
-      }
-
-      const services = await response.json()
-      return services
-    } catch (error) {
-      console.error('Error in getServices:', error)
-      throw error
-    }
-  }
-
-  /**
-   * Obtiene citas por documento
-   * @param {string} documento - Número de documento
-   * @returns {Promise<Array>} Array de citas
-   */
-  async getAppointments(documento) {
-    try {
-      const response = await fetch(`${this.apiBaseUrl}/appointments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ documento })
-      })
-
-      if (!response.ok) {
-        throw new Error('Error fetching appointments')
-      }
-
-      const data = await response.json()
-      return data.appointments || []
-    } catch (error) {
-      console.error('Error in getAppointments:', error)
-      throw error
-    }
-  }
-
-  /**
-   * Procesa la respuesta del backend
-   * @param {Object} response - Respuesta del backend
-   */
   processResponse(response) {
     if (response.bot_response) {
       this.panel.addMessage(response.bot_response, 'bot')
     }
 
-    // Si hay quick replies
-    if (response.quick_replies && response.quick_replies.length > 0) {
-      this.panel.addQuickReplies(response.quick_replies)
+    if (response.quickReplies && response.quickReplies.length > 0) {
+      this.panel.addQuickReplies(response.quickReplies)
     }
 
-    // Si hay servicios
-    if (response.servicios && response.servicios.length > 0) {
-      this.panel.addServiceCards(response.servicios)
-    }
-
-    // Si hay citas
-    if (response.citas && response.citas.length > 0) {
-      this.panel.addAppointmentCards(response.citas)
+    // N8N puede actualizar el nombre del usuario
+    if (response.data?.userName) {
+      this.userName = response.data.userName
+      this.saveSession()
     }
   }
 
-  /**
-   * Guarda la sesión en localStorage
-   */
   saveSession() {
     localStorage.setItem('chat_session_id', this.sessionId || '')
     localStorage.setItem('chat_user_name', this.userName || '')
   }
 
-  /**
-   * Carga la sesión desde localStorage
-   */
   loadSession() {
     this.sessionId = localStorage.getItem('chat_session_id') || null
     this.userName = localStorage.getItem('chat_user_name') || null
   }
 
-  /**
-   * Obtiene el session ID
-   * @returns {string|null}
-   */
-  getSessionId() {
-    return this.sessionId
-  }
-
-  /**
-   * Obtiene el nombre de usuario
-   * @returns {string|null}
-   */
-  getUserName() {
-    return this.userName
-  }
-
-  /**
-   * Establece el nombre de usuario
-   * @param {string} name
-   */
-  setUserName(name) {
-    this.userName = name
-    this.saveSession()
-  }
+  getSessionId() { return this.sessionId }
+  getUserName() { return this.userName }
+  setUserName(name) { this.userName = name; this.saveSession() }
 }
 
 // ============================================================

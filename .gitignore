@@ -7,3 +7,4 @@ data/contacts.json
 *.log
 .DS_Store
 Thumbs.db
+graphify-out/
