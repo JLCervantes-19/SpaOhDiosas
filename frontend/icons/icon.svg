@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- CLIENTE: reemplazar este SVG con el logo del cliente -->
+  <!-- Fondo redondeado -->
+  <rect width="512" height="512" rx="96" fill="#2C4A2E"/>
+  <!-- Hoja superior izquierda -->
+  <ellipse cx="200" cy="185" rx="55" ry="90" fill="#C9A961" opacity="0.9" transform="rotate(-35 200 185)"/>
+  <!-- Hoja superior derecha -->
+  <ellipse cx="312" cy="185" rx="55" ry="90" fill="#C9A961" opacity="0.9" transform="rotate(35 312 185)"/>
+  <!-- Hoja central inferior -->
+  <ellipse cx="256" cy="270" rx="45" ry="80" fill="#FAF8F5" opacity="0.85"/>
+  <!-- Tallo central -->
+  <line x1="256" y1="340" x2="256" y2="390" stroke="#C9A961" stroke-width="10" stroke-linecap="round"/>
+  <!-- Texto SPA -->
+  <text x="256" y="450" text-anchor="middle" font-family="Georgia, serif" font-size="72" font-weight="bold" fill="#FAF8F5" letter-spacing="12">SPA</text>
+</svg>

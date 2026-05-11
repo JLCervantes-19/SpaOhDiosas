@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Serenità Spa — Luxury Wellness</title>
   <meta name="description" content="Experimenta el arte del bienestar en su máxima expresión. Tratamientos premium diseñados para renovar tu cuerpo y elevar tu espíritu." />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <!-- PWA ═══════════════════════════════════════════════════
+       CLIENTE: cambiar theme-color y apple-mobile-web-app-title -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#2C4A2E" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="SPA" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <!-- ════════════════════════════════════════════════════ -->
 
   <!-- Fuentes de lujo -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -541,5 +553,13 @@
   })
 </script>
 
+  <!-- PWA: Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      });
+    }
+  </script>
 </body>
 </html>
