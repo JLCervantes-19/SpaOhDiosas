@@ -25,7 +25,7 @@
 /* ——— RESET & BASE ——————————————————————————————————————— */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+html { scroll-behavior: smooth; scroll-padding-top: calc(80px + env(safe-area-inset-top, 0px)); }
 
 body {
   font-family: var(--font-body);
@@ -161,7 +161,8 @@ a { text-decoration: none; color: inherit; }
   position: fixed;
   top: 0; left: 0; right: 0;
   z-index: 1000;
-  height: 76px;
+  height: calc(76px + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
   display: flex;
   align-items: center;
   transition: background 0.5s ease, box-shadow 0.5s ease;
@@ -821,7 +822,7 @@ p {
 /* Chat Header */
 .chat-header {
   background: linear-gradient(135deg, #2C4A2E 0%, #3D6640 100%);
-  padding: 20px;
+  padding: calc(env(safe-area-inset-top, 0px) + 20px) 20px 20px 20px;
   display: flex;
   align-items: center;
   gap: 12px;
