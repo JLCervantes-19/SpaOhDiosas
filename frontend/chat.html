@@ -715,6 +715,11 @@
       if (chatStarted) return
       chatStarted = true
       document.getElementById('welcomeScreen')?.remove()
+      // Forzar sesión nueva: eliminar datos viejos para que n8n reciba usuario limpio
+      localStorage.removeItem('chat_session_id')
+      localStorage.removeItem('chat_user_name')
+      sessionId = null
+      userName  = null
       await createSession()
       showTypingIndicator()
       try {
