@@ -17,7 +17,7 @@ class N8NService {
     return Boolean(this.webhookUrl && this.webhookUrl.trim() !== '');
   }
 
-  async sendMessage(sessionId, userName, message) {
+  async sendMessage(sessionId, userName, message, messageType = 'text', action = null) {
     if (!this.isConfigured()) {
       throw new Error('N8N webhook is not configured');
     }
@@ -25,9 +25,11 @@ class N8NService {
     // El workflow n8n espera el campo "chatInput" en el nodo "Parse Input"
     const payload = {
       sessionId,
-      userName: userName || 'Usuario',
+      userName: userName || '',
       chatInput: message,
-      mensaje: message  // compatibilidad con versiones anteriores
+      mensaje: message,        // compatibilidad con versiones anteriores
+      messageType,             // 'init' | 'text' | 'quick_reply'
+      ...(action && { action }) // clave normalizada del botón, p.ej. "agendar_cita"
     };
 
     const controller = new AbortController();
@@ -61,6 +63,7 @@ class N8NService {
       return {
         response: botResponse,
         quickReplies: data.quickReplies || data.opciones || data.suggestions || [],
+        messages: Array.isArray(data.messages) ? data.messages : [],
         data: data.data || {}
       };
 

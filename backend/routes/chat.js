@@ -45,7 +45,7 @@ router.post('/session', async (req, res) => {
 // Returns: {bot_response, quickReplies?}
 router.post('/message', async (req, res) => {
   try {
-    const { session_id, user_name, message } = req.body
+    const { session_id, user_name, message, messageType = 'text', action = null } = req.body
 
     if (!session_id || !message) {
       return res.status(400).json({
@@ -69,7 +69,7 @@ router.post('/message', async (req, res) => {
     }
 
     // Enviar a N8N
-    const n8nResponse = await n8n.sendMessage(session_id, user_name, message)
+    const n8nResponse = await n8n.sendMessage(session_id, user_name, message, messageType, action)
 
     // Actualizar actividad de la sesión (no crítico)
     supabase.from('chat_sessions')
@@ -79,6 +79,7 @@ router.post('/message', async (req, res) => {
 
     res.status(200).json({
       bot_response: n8nResponse.response,
+      bot_messages: n8nResponse.messages || [],
       quickReplies: n8nResponse.quickReplies || [],
       data: n8nResponse.data || {}
     })

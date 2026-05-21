@@ -417,6 +417,24 @@ function createMessageBubble(text, sender = 'bot') {
   return bubble
 }
 
+// Mapeo de etiquetas de botón a claves de acción normalizadas para n8n
+const QUICK_REPLY_ACTIONS = {
+  'ver servicios': 'ver_servicios',
+  'agendar cita': 'agendar_cita',
+  'consultar mis citas': 'consultar_citas',
+  'horarios y ubicación': 'horarios_ubicacion',
+  'horarios y ubicacion': 'horarios_ubicacion',
+  'certificados de regalo': 'certificados_regalo',
+  'hablar con asesor': 'hablar_asesor',
+  'volver al menú': 'menu',
+  'volver al menu': 'menu',
+  'volver': 'menu',
+  '1': 'ver_servicios',
+  '2': 'consultar_citas',
+  '3': 'agendar_cita',
+  '4': 'hablar_asesor'
+}
+
 /**
  * Crea quick replies (botones de respuesta rápida)
  * @param {Array<string>} options - Array de opciones
@@ -425,19 +443,19 @@ function createMessageBubble(text, sender = 'bot') {
 function createQuickReplies(options) {
   const container = document.createElement('div')
   container.className = 'quick-replies'
-  
+
   options.forEach(option => {
     const button = document.createElement('button')
     button.className = 'quick-reply-btn'
     button.textContent = option
     button.addEventListener('click', () => {
-      // Emitir evento con la opción seleccionada
-      const event = new CustomEvent('chat:quickreply', { detail: { option } })
+      const action = QUICK_REPLY_ACTIONS[option.toLowerCase()] || null
+      const event = new CustomEvent('chat:quickreply', { detail: { option, action } })
       window.dispatchEvent(event)
     })
     container.appendChild(button)
   })
-  
+
   return container
 }
 
@@ -578,16 +596,18 @@ class ChatManager {
 
     this.loadSession()
 
-    window.addEventListener('chat:send', (e) => this.handleUserMessage(e.detail.message))
-    // Los quick replies se tratan como mensajes normales → van a N8N
-    window.addEventListener('chat:quickreply', (e) => this.handleUserMessage(e.detail.option))
+    window.addEventListener('chat:send', (e) => this.handleUserMessage(e.detail.message, 'text'))
+    // Los quick replies llevan tipo 'quick_reply' y su acción normalizada
+    window.addEventListener('chat:quickreply', (e) => {
+      this.handleUserMessage(e.detail.option, 'quick_reply', e.detail.action)
+    })
   }
 
   async initSession() {
     try {
       if (this.sessionId) {
         // Sesión existente: dejar que N8N maneje el saludo de bienvenida
-        await this.sendToBackend('__init__')
+        await this.sendToBackend('__init__', 'init')
         return this.sessionId
       }
 
@@ -603,7 +623,7 @@ class ChatManager {
       this.saveSession()
 
       // Trigger inicial → N8N responde con el saludo
-      await this.sendToBackend('__init__')
+      await this.sendToBackend('__init__', 'init')
 
       return this.sessionId
     } catch (error) {
@@ -612,12 +632,12 @@ class ChatManager {
     }
   }
 
-  async handleUserMessage(message) {
+  async handleUserMessage(message, messageType = 'text', action = null) {
     this.panel.addMessage(message, 'user')
 
     try {
       this.panel.showTypingIndicator()
-      const response = await this.sendToBackend(message)
+      const response = await this.sendToBackend(message, messageType, action)
       this.panel.hideTypingIndicator()
       this.processResponse(response)
     } catch (error) {
@@ -627,15 +647,19 @@ class ChatManager {
     }
   }
 
-  async sendToBackend(message) {
+  async sendToBackend(message, messageType = 'text', action = null) {
+    const body = {
+      session_id: this.sessionId,
+      user_name: this.userName,
+      message,
+      messageType
+    }
+    if (action) body.action = action
+
     const response = await fetch(`${this.apiBaseUrl}/message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        session_id: this.sessionId,
-        user_name: this.userName,
-        message
-      })
+      body: JSON.stringify(body)
     })
 
     if (!response.ok) {
@@ -647,7 +671,10 @@ class ChatManager {
   }
 
   processResponse(response) {
-    if (response.bot_response) {
+    // Soporte para múltiples burbujas (bot_messages[]) o burbuja única (bot_response)
+    if (response.bot_messages && response.bot_messages.length > 0) {
+      response.bot_messages.forEach(msg => this.panel.addMessage(msg, 'bot'))
+    } else if (response.bot_response) {
       this.panel.addMessage(response.bot_response, 'bot')
     }
 

@@ -4,6 +4,7 @@ node_modules/
 .vercel
 data/bookings.json
 data/contacts.json
+data/n8n_workflow_backup.json
 *.log
 .DS_Store
 Thumbs.db
