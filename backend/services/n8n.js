@@ -64,6 +64,7 @@ class N8NService {
         response: botResponse,
         quickReplies: data.quickReplies || data.opciones || data.suggestions || [],
         messages: Array.isArray(data.messages) ? data.messages : [],
+        redirect: data.redirect || null,
         data: data.data || {}
       };
 

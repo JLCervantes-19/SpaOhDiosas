@@ -432,7 +432,22 @@
     .welcome-subtext {
       font-size: 0.85rem;
       color: rgba(28, 28, 30, 0.5);
+      margin-bottom: 20px;
     }
+
+    .welcome-start-btn {
+      background: var(--purple-dark);
+      color: #fff;
+      border: none;
+      border-radius: 24px;
+      padding: 12px 28px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      font-family: 'Raleway', sans-serif;
+      letter-spacing: 0.5px;
+      transition: opacity 0.2s;
+    }
+    .welcome-start-btn:active { opacity: 0.8; }
 
     /* Responsive */
     @media (min-width: 768px) {
@@ -503,11 +518,12 @@
 
     <!-- Messages Area -->
     <div class="chat-messages" id="chatMessages">
-      <!-- Welcome Message -->
-      <div class="welcome-message">
+      <!-- Welcome Message: el usuario hace clic para iniciar -->
+      <div class="welcome-message" id="welcomeScreen">
         <div class="welcome-icon">🌿</div>
-        <p class="welcome-text">Bienvenido a Serenità Spa</p>
-        <p class="welcome-subtext">Estamos aquí para ayudarte</p>
+        <p class="welcome-text">Bienvenida a Serenità Spa</p>
+        <p class="welcome-subtext">Tu asistente virtual está lista</p>
+        <button class="welcome-start-btn" onclick="startChat()">Iniciar conversación ✨</button>
       </div>
     </div>
 
@@ -530,254 +546,211 @@
   </div>
 
   <script>
-    // ── Variables ──────────────────────────────────────────────
+    // ── Estado global (solo sesión — toda la lógica está en n8n) ──
     const chatMessages = document.getElementById('chatMessages')
     const chatInput    = document.getElementById('chatInput')
     const sendButton   = document.getElementById('sendButton')
 
-    let sessionId = localStorage.getItem('chat_session_id') || null
-    let userName  = localStorage.getItem('chat_user_name')  || null
+    let sessionId   = localStorage.getItem('chat_session_id') || null
+    let userName    = localStorage.getItem('chat_user_name')  || null
+    let chatStarted = false
 
     const API_BASE = window.location.origin + '/api/chat'
 
-    // Mapa de texto de botón → action code para n8n
-    const QUICK_REPLY_ACTIONS = {
-      'ver servicios':          'ver_servicios',
-      'agendar cita':           'agendar_cita',
-      'consultar mis citas':    'consultar_citas',
-      'horarios y ubicación':   'horarios_ubicacion',
-      'horarios y ubicacion':   'horarios_ubicacion',
-      'certificados de regalo': 'certificados_regalo',
-      'hablar con asesor':      'hablar_asesor',
-      'volver al menú':         'menu',
-      'volver al menu':         'menu',
-      'volver':                 'menu',
-    }
+    // ── Utilidades UI ──────────────────────────────────────────
 
     function getCurrentTime() {
       return new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
     }
 
-    // Función para crear sesión (solo si no hay una guardada)
+    function scrollToBottom() {
+      setTimeout(() => { chatMessages.scrollTop = chatMessages.scrollHeight }, 100)
+    }
+
+    function addBotMessage(text) {
+      const div = document.createElement('div')
+      div.className = 'message bot'
+      const html = text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>')
+      div.innerHTML = `
+        <div class="message-avatar">🌿</div>
+        <div style="flex:1;max-width:85%">
+          <div class="message-bubble">${html}</div>
+          <div class="message-time">${getCurrentTime()}</div>
+        </div>`
+      chatMessages.appendChild(div)
+      scrollToBottom()
+    }
+
+    function addUserMessage(text) {
+      const div = document.createElement('div')
+      div.className = 'message user'
+      div.innerHTML = `
+        <div class="message-avatar">👤</div>
+        <div style="flex:1;max-width:85%;display:flex;flex-direction:column;align-items:flex-end">
+          <div class="message-bubble">${text}</div>
+          <div class="message-time">${getCurrentTime()}</div>
+        </div>`
+      chatMessages.appendChild(div)
+      scrollToBottom()
+    }
+
+    function addQuickReplies(options) {
+      document.querySelectorAll('.quick-replies').forEach(el => el.remove())
+      const wrap = document.createElement('div')
+      wrap.className = 'quick-replies'
+      options.forEach(opt => {
+        const btn = document.createElement('button')
+        btn.className = 'quick-reply-btn'
+        btn.textContent = opt
+        btn.onclick = () => handleQuickReply(opt)
+        wrap.appendChild(btn)
+      })
+      chatMessages.appendChild(wrap)
+      scrollToBottom()
+    }
+
+    function showTypingIndicator() {
+      if (document.getElementById('typingIndicator')) return
+      const div = document.createElement('div')
+      div.className = 'typing-indicator'
+      div.id = 'typingIndicator'
+      div.innerHTML = `
+        <div class="message-avatar" style="background:rgba(173,116,195,0.2);border:2px solid var(--lilac)">🌿</div>
+        <div class="typing-bubble">
+          <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+        </div>`
+      chatMessages.appendChild(div)
+      scrollToBottom()
+    }
+
+    function hideTypingIndicator() {
+      document.getElementById('typingIndicator')?.remove()
+    }
+
+    // ── API ────────────────────────────────────────────────────
+
     async function createSession() {
-      if (sessionId) return  // reutilizar sesión existente
+      if (sessionId) return
       try {
         const res = await fetch(`${API_BASE}/session`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          method: 'POST', headers: { 'Content-Type': 'application/json' }
         })
-        if (!res.ok) throw new Error('Error creating session')
         const data = await res.json()
         sessionId = data.session_id
         localStorage.setItem('chat_session_id', sessionId)
-      } catch (err) {
-        console.error('Error creating session:', err)
-      }
+      } catch (err) { console.error('Session error:', err) }
     }
 
-    // Función para enviar mensaje al backend
-    async function sendMessageToBackend(message, messageType = 'text', action = null) {
-      try {
-        const body = {
-          session_id: sessionId,
-          user_name: userName,
-          message,
-          messageType
-        }
-        if (action) body.action = action
-
-        const res = await fetch(`${API_BASE}/message`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        })
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}))
-          throw new Error(err.message || 'Error')
-        }
-        return await res.json()
-      } catch (err) {
-        console.error('Error sending message:', err)
-        return { bot_response: 'Lo siento, hubo un error. Por favor intenta de nuevo.' }
-      }
-    }
-
-    // Función para agregar mensaje del bot con formato mejorado
-    function addBotMessage(text, showTime = true) {
-      const messageDiv = document.createElement('div')
-      messageDiv.className = 'message bot'
-      
-      // Procesar el texto para formato markdown simple
-      let formattedText = text
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // **bold**
-        .replace(/\n/g, '<br>') // saltos de línea
-      
-      messageDiv.innerHTML = `
-        <div class="message-avatar">🌿</div>
-        <div style="flex: 1; max-width: 85%;">
-          <div class="message-bubble">${formattedText}</div>
-          ${showTime ? `<div class="message-time">${getCurrentTime()}</div>` : ''}
-        </div>
-      `
-      
-      chatMessages.appendChild(messageDiv)
-      scrollToBottom()
-    }
-
-    // Función para agregar mensaje del usuario
-    function addUserMessage(text) {
-      const messageDiv = document.createElement('div')
-      messageDiv.className = 'message user'
-      
-      messageDiv.innerHTML = `
-        <div class="message-avatar">👤</div>
-        <div style="flex: 1; max-width: 85%; display: flex; flex-direction: column; align-items: flex-end;">
-          <div class="message-bubble">${text}</div>
-          <div class="message-time">${getCurrentTime()}</div>
-        </div>
-      `
-      
-      chatMessages.appendChild(messageDiv)
-      scrollToBottom()
-    }
-
-    // Función para agregar quick replies
-    function addQuickReplies(options) {
-      const quickRepliesDiv = document.createElement('div')
-      quickRepliesDiv.className = 'quick-replies'
-      options.forEach(option => {
-        const button = document.createElement('button')
-        button.className = 'quick-reply-btn'
-        button.textContent = option
-        button.onclick = () => handleQuickReply(option)
-        quickRepliesDiv.appendChild(button)
+    async function sendToN8N(message, messageType = 'text') {
+      const body = { session_id: sessionId, user_name: userName, message, messageType }
+      const res = await fetch(`${API_BASE}/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
       })
-      chatMessages.appendChild(quickRepliesDiv)
-      scrollToBottom()
+      if (!res.ok) throw new Error('Error de red')
+      return res.json()
     }
 
-    // Función para mostrar typing indicator
-    function showTypingIndicator() {
-      const typingDiv = document.createElement('div')
-      typingDiv.className = 'typing-indicator'
-      typingDiv.id = 'typingIndicator'
-      
-      typingDiv.innerHTML = `
-        <div class="message-avatar" style="background: rgba(173, 116, 195, 0.2); border: 2px solid var(--lilac);">🌿</div>
-        <div class="typing-bubble">
-          <div class="typing-dot"></div>
-          <div class="typing-dot"></div>
-          <div class="typing-dot"></div>
-        </div>
-      `
-      
-      chatMessages.appendChild(typingDiv)
-      scrollToBottom()
-    }
+    // ── Procesar respuesta de n8n ──────────────────────────────
+    // El frontend solo renderiza lo que n8n manda — sin lógica propia
 
-    // Función para ocultar typing indicator
-    function hideTypingIndicator() {
-      const indicator = document.getElementById('typingIndicator')
-      if (indicator) {
-        indicator.remove()
-      }
-    }
-
-    // Función para scroll al final
-    function scrollToBottom() {
-      setTimeout(() => {
-        chatMessages.scrollTop = chatMessages.scrollHeight
-      }, 100)
-    }
-
-    // Procesar respuesta de n8n y mostrar mensajes + quick replies
     function processResponse(response) {
-      if (response.bot_messages && response.bot_messages.length > 0) {
+      if (response.bot_messages?.length > 0) {
         response.bot_messages.forEach(msg => addBotMessage(msg))
       } else if (response.bot_response) {
         addBotMessage(response.bot_response)
       }
-      if (response.quickReplies && response.quickReplies.length > 0) {
+      if (response.quickReplies?.length > 0) {
         setTimeout(() => addQuickReplies(response.quickReplies), 400)
       }
-      // Guardar nombre si n8n lo retorna
       if (response.data?.userName) {
         userName = response.data.userName
         localStorage.setItem('chat_user_name', userName)
       }
+      // n8n puede pedir redirección (ej: ir a /reservas.html para agendar)
+      if (response.redirect) {
+        setTimeout(() => { window.location.href = response.redirect }, 1800)
+      }
     }
 
-    // Manejar click en quick reply — envía messageType 'quick_reply' + action code
+    // ── Manejadores de mensajes ────────────────────────────────
+
     async function handleQuickReply(option) {
       document.querySelectorAll('.quick-replies').forEach(el => el.remove())
       addUserMessage(option)
-      const action = QUICK_REPLY_ACTIONS[option.toLowerCase()] || null
       showTypingIndicator()
-      const response = await sendMessageToBackend(option, 'quick_reply', action)
-      hideTypingIndicator()
-      processResponse(response)
+      try {
+        const response = await sendToN8N(option, 'quick_reply')
+        hideTypingIndicator()
+        processResponse(response)
+      } catch {
+        hideTypingIndicator()
+        addBotMessage('Hubo un error. Por favor intenta de nuevo.')
+      }
     }
 
-    // Manejar envío de texto libre desde el input
     async function handleSendMessage() {
       const message = chatInput.value.trim()
       if (!message) return
+      document.querySelectorAll('.quick-replies').forEach(el => el.remove())
       addUserMessage(message)
       chatInput.value = ''
       showTypingIndicator()
-      const response = await sendMessageToBackend(message, 'text')
-      hideTypingIndicator()
-      processResponse(response)
+      try {
+        const response = await sendToN8N(message, 'text')
+        hideTypingIndicator()
+        processResponse(response)
+      } catch {
+        hideTypingIndicator()
+        addBotMessage('Hubo un error. Por favor intenta de nuevo.')
+      }
     }
 
-    // Event listeners
+    // ── Inicio del chat (solo al presionar el botón de bienvenida) ─
+
+    async function startChat() {
+      if (chatStarted) return
+      chatStarted = true
+      document.getElementById('welcomeScreen')?.remove()
+      await createSession()
+      showTypingIndicator()
+      try {
+        const response = await sendToN8N('__init__', 'init')
+        hideTypingIndicator()
+        processResponse(response)
+      } catch {
+        hideTypingIndicator()
+        addBotMessage('No se pudo conectar. Por favor recarga la página.')
+      }
+      chatInput.focus()
+    }
+
+    // ── Event listeners ───────────────────────────────────────
+
     sendButton.addEventListener('click', handleSendMessage)
     chatInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') handleSendMessage()
     })
 
-    // Inicializar chat: n8n decide el saludo según el estado guardado en Supabase
-    window.addEventListener('DOMContentLoaded', async () => {
-      await createSession()
-      document.querySelector('.welcome-message')?.remove()
-      showTypingIndicator()
-      const response = await sendMessageToBackend('__init__', 'init')
-      hideTypingIndicator()
-      processResponse(response)
-      chatInput.focus()
-    })
-    
-    // Fix para viewport en móvil cuando aparece el teclado
+    // ── Viewport móvil ────────────────────────────────────────
+
     function setViewportHeight() {
-      const vh = window.innerHeight * 0.01
-      document.documentElement.style.setProperty('--vh', `${vh}px`)
+      document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`)
     }
-    
-    // Establecer altura inicial
     setViewportHeight()
-    
-    // Actualizar en resize (pero con debounce para evitar muchos cálculos)
     let resizeTimer
     window.addEventListener('resize', () => {
       clearTimeout(resizeTimer)
-      resizeTimer = setTimeout(() => {
-        setViewportHeight()
-      }, 100)
+      resizeTimer = setTimeout(setViewportHeight, 100)
     })
-    
-    // Prevenir zoom en iOS cuando se hace focus en el input
     chatInput.addEventListener('focus', (e) => {
-      // Scroll suave al input
-      setTimeout(() => {
-        e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }, 300)
+      setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300)
     })
-    
-    // Scroll al final cuando se oculta el teclado
     chatInput.addEventListener('blur', () => {
-      setTimeout(() => {
-        scrollToBottom()
-      }, 300)
+      setTimeout(scrollToBottom, 300)
     })
   </script>
 

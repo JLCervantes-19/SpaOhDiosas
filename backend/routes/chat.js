@@ -81,6 +81,7 @@ router.post('/message', async (req, res) => {
       bot_response: n8nResponse.response,
       bot_messages: n8nResponse.messages || [],
       quickReplies: n8nResponse.quickReplies || [],
+      redirect: n8nResponse.redirect || null,
       data: n8nResponse.data || {}
     })
 
