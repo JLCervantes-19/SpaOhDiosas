@@ -4,11 +4,12 @@
 
 require('dotenv').config()
 
-const express    = require('express')
-const cors       = require('cors')
-const path       = require('path')
-const helmet     = require('helmet')
-const rateLimit  = require('express-rate-limit')
+const express     = require('express')
+const cors        = require('cors')
+const path        = require('path')
+const helmet      = require('helmet')
+const rateLimit   = require('express-rate-limit')
+const compression = require('compression')
 
 const servicesRouter  = require('./routes/services')
 const bookingsRouter  = require('./routes/bookings')
@@ -17,6 +18,9 @@ const chatRouter      = require('./routes/chat')
 
 const app  = express()
 const PORT = process.env.PORT ?? 3000
+
+// ——— COMPRESIÓN GZIP ————————————————————————————————————
+app.use(compression())
 
 // ——— SEGURIDAD — HEADERS HTTP ————————————————————————————
 app.use(helmet({ contentSecurityPolicy: false }))
@@ -49,7 +53,7 @@ app.use(generalLimiter)
 // ——— MIDDLEWARE ——————————————————————————————————————————
 app.use(cors({
   origin: process.env.FRONTEND_URL ?? '*',
-  methods: ['GET', 'POST', 'PATCH'],
+  methods: ['GET', 'POST', 'PATCH', 'DELETE'],
 }))
 app.use(express.json({ limit: '50kb' }))
 app.use(express.urlencoded({ extended: true, limit: '50kb' }))
@@ -65,19 +69,36 @@ app.use('/api/contact',       contactRouter)
 app.use('/api/chat',          chatLimiter, chatRouter)
 app.use('/api/slots',         bookingsRouter)   // re-usa el router (tiene /slots)
 
-// Testimonials - endpoint separado
+// Helper: aplicar cache a respuestas públicas (5 min browser + 10 min CDN)
+function cachePublic(res, seconds = 300) {
+  res.set('Cache-Control', `public, max-age=${seconds}, s-maxage=${seconds * 2}`)
+}
+
+// Testimonials — todos los disponibles
 app.get('/api/testimonials', async (req, res) => {
-  const { createClient } = require('@supabase/supabase-js')
-  const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
-  
+  const supabase = require('./lib/supabase')
   const { data, error } = await supabase
     .from('testimonios')
     .select('*')
-    .eq('activo', true)
     .order('created_at', { ascending: false })
-  
+
   if (error) return res.status(500).json({ error: error.message })
+  cachePublic(res)
   res.json(data || [])
+})
+
+// Configuración del negocio
+app.get('/api/config', async (req, res) => {
+  const supabase = require('./lib/supabase')
+  const { data, error } = await supabase
+    .from('configuracion')
+    .select('*')
+    .limit(1)
+    .single()
+
+  if (error && error.code !== 'PGRST116') return res.status(500).json({ error: error.message })
+  cachePublic(res, 600) // 10 min — cambia poco
+  res.json(data || {})
 })
 
 // ——— HEALTH CHECK ————————————————————————————————————————

@@ -15,8 +15,9 @@ router.get('/', async (req, res) => {
       .select('*')
       .eq('activo', true)
       .order('nombre')
-    
+
     if (error) return res.status(500).json({ error: error.message })
+    res.set('Cache-Control', 'public, max-age=300, s-maxage=600')
     res.json(data)
   } catch (err) {
     res.status(500).json({ error: 'Error cargando servicios' })

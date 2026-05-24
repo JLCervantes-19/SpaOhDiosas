@@ -1,5 +1,6 @@
 // ============================================================
 // backend/routes/bookings.js — Citas y disponibilidad
+// Con asignación automática de empleada por servicio
 // ============================================================
 
 const express  = require('express')
@@ -7,101 +8,256 @@ const supabase = require('../lib/supabase')
 
 const router = express.Router()
 
-// Middleware de autenticación para endpoints de administración
 function requireAdmin(req, res, next) {
   const adminToken = process.env.ADMIN_TOKEN
-  if (!adminToken) {
-    return res.status(403).json({ error: 'Acceso de administrador no configurado' })
-  }
+  if (!adminToken) return res.status(403).json({ error: 'Admin no configurado' })
   const provided = req.headers['x-admin-token'] || req.query.admin_token
-  if (provided !== adminToken) {
-    return res.status(401).json({ error: 'Token de administrador inválido' })
-  }
+  if (provided !== adminToken) return res.status(401).json({ error: 'Token inválido' })
   next()
 }
 
-// Horario del spa: Lunes–Viernes 9–18, Sábado 9–16
-// 👉 Aquí puedes modificar el horario del spa
-const SCHEDULE = {
-  1: { start: '09:00', end: '18:00' }, // Lunes
-  2: { start: '09:00', end: '18:00' }, // Martes
-  3: { start: '09:00', end: '18:00' }, // Miércoles
-  4: { start: '09:00', end: '18:00' }, // Jueves
-  5: { start: '09:00', end: '18:00' }, // Viernes
-  6: { start: '09:00', end: '16:00' }, // Sábado
+// Mapeo getDay() → clave en configuracion.horario_semana
+const DIA_KEYS = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado']
+
+// Horario fallback si BD no tiene configuración
+const HORARIO_FALLBACK = {
+  lunes:     { open:'09:00', close:'18:00', activo:true  },
+  martes:    { open:'09:00', close:'18:00', activo:true  },
+  miercoles: { open:'09:00', close:'18:00', activo:true  },
+  jueves:    { open:'09:00', close:'18:00', activo:true  },
+  viernes:   { open:'09:00', close:'18:00', activo:true  },
+  sabado:    { open:'09:00', close:'16:00', activo:true  },
+  domingo:   { open:'09:00', close:'16:00', activo:false },
 }
 
-function timeToMinutes(t) {
-  const [h, m] = t.split(':').map(Number)
+// ——— Utilidades de tiempo ——————————————————————————————————
+function timeToMin(t) {
+  const [h, m] = t.slice(0, 5).split(':').map(Number)
   return h * 60 + m
 }
-
-function minutesToTime(m) {
-  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+function minToTime(m) {
+  return `${String(Math.floor(m / 60)).padStart(2,'0')}:${String(m % 60).padStart(2,'0')}`
+}
+function cruzan(s1, e1, s2, e2) {
+  return timeToMin(s1) < timeToMin(e2) && timeToMin(e1) > timeToMin(s2)
 }
 
-function intervalosSeCruzan(s1, e1, s2, e2) {
-  return timeToMinutes(s1) < timeToMinutes(e2) &&
-         timeToMinutes(e1) > timeToMinutes(s2)
+// ——— Horario del spa desde BD ————————————————————————————
+async function getHorarioSpa() {
+  try {
+    const { data } = await supabase
+      .from('configuracion')
+      .select('horario_semana, slot_duracion_min')
+      .limit(1)
+      .single()
+    return {
+      horario: data?.horario_semana || HORARIO_FALLBACK,
+      slotMin: data?.slot_duracion_min || 30,
+    }
+  } catch {
+    return { horario: HORARIO_FALLBACK, slotMin: 30 }
+  }
 }
 
-// ——— GET /api/slots?servicio=id&fecha=YYYY-MM-DD ——————————
+// ——— Empleadas que pueden hacer un servicio (activas) ————
+async function getCandidatas(servicioId) {
+  const { data } = await supabase
+    .from('empleado_servicios')
+    .select('empleado_id, empleados(id, nombre, apellido, activo)')
+    .eq('servicio_id', servicioId)
+
+  if (!data?.length) return []
+  return data
+    .map(a => a.empleados)
+    .filter(e => e && e.activo === true)
+}
+
+// ——— Citas del día agrupadas por empleada ————————————————
+async function getCitasPorEmpleada(fecha, empleadaIds) {
+  if (!empleadaIds.length) return {}
+
+  const { data } = await supabase
+    .from('citas')
+    .select('empleado_id, hora_inicio, hora_fin')
+    .eq('fecha', fecha)
+    .neq('estado', 'cancelada')
+    .neq('estado', 'no_asistio')
+    .in('empleado_id', empleadaIds)
+
+  const mapa = {}
+  empleadaIds.forEach(id => { mapa[id] = [] })
+  ;(data || []).forEach(c => {
+    if (c.empleado_id && mapa[c.empleado_id]) {
+      mapa[c.empleado_id].push(c)
+    }
+  })
+  return mapa
+}
+
+// ——— Bloqueos del día agrupados por empleada ————————————
+async function getBloqueosPorEmpleada(fecha, empleadaIds) {
+  if (!empleadaIds.length) return {}
+
+  const { data } = await supabase
+    .from('bloqueos')
+    .select('empleado_id, hora_inicio, hora_fin')
+    .lte('fecha_inicio', fecha)
+    .gte('fecha_fin', fecha)
+
+  const mapa = {}
+  empleadaIds.forEach(id => { mapa[id] = [] })
+  ;(data || []).forEach(b => {
+    if (b.empleado_id === null) {
+      // Bloqueo global del spa → aplica a todas
+      empleadaIds.forEach(id => mapa[id].push(b))
+    } else if (mapa[b.empleado_id] !== undefined) {
+      mapa[b.empleado_id].push(b)
+    }
+  })
+  return mapa
+}
+
+// ——— Verificar si una empleada está libre en un slot ——————
+function empleadaEstaLibre(citasEmpleada, bloqueosEmpleada, slotStart, slotEnd) {
+  const conflictoCita = citasEmpleada.some(c =>
+    cruzan(slotStart, slotEnd, c.hora_inicio, c.hora_fin)
+  )
+  if (conflictoCita) return false
+
+  const conflictoBloqueo = bloqueosEmpleada.some(b => {
+    if (!b.hora_inicio) return true // Bloqueo día completo
+    return cruzan(slotStart, slotEnd, b.hora_inicio.slice(0,5), (b.hora_fin || '23:59').slice(0,5))
+  })
+  return !conflictoBloqueo
+}
+
+// ——— Formateo de fechas para mensajes ———————————————————
+function fechaLegible(fecha) {
+  const d = new Date(fecha + 'T12:00:00')
+  return d.toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long' })
+}
+function horaLegible(hora) {
+  const [h, m] = hora.split(':').map(Number)
+  return `${h % 12 || 12}:${String(m).padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}`
+}
+
+// ——— Sugerir próximos horarios disponibles ———————————————
+async function sugerirHorarios(servicioId, fechaBase, max = 3) {
+  const { data: svc } = await supabase
+    .from('servicios')
+    .select('duracion_min, buffer_min')
+    .eq('id', servicioId)
+    .single()
+  if (!svc) return []
+
+  const candidatas = await getCandidatas(servicioId)
+  if (!candidatas.length) return []
+
+  const { horario, slotMin } = await getHorarioSpa()
+  const totalMin    = svc.duracion_min + (svc.buffer_min ?? 10)
+  const empleadaIds = candidatas.map(e => e.id)
+  const sugerencias = []
+  const base        = new Date(fechaBase + 'T12:00:00')
+
+  for (let i = 1; i <= 14 && sugerencias.length < max; i++) {
+    const d       = new Date(base)
+    d.setDate(base.getDate() + i)
+    const fecha   = d.toISOString().split('T')[0]
+    const diaKey  = DIA_KEYS[d.getDay()]
+    const diaConf = horario[diaKey]
+
+    if (!diaConf?.activo) continue
+
+    const [citas, bloqueos] = await Promise.all([
+      getCitasPorEmpleada(fecha, empleadaIds),
+      getBloqueosPorEmpleada(fecha, empleadaIds),
+    ])
+
+    let cursor = timeToMin(diaConf.open)
+    const fin  = timeToMin(diaConf.close)
+
+    while (cursor + totalMin <= fin && sugerencias.length < max) {
+      const slotStart = minToTime(cursor)
+      const slotEnd   = minToTime(cursor + totalMin)
+
+      const hayLibre = candidatas.some(e =>
+        empleadaEstaLibre(citas[e.id] || [], bloqueos[e.id] || [], slotStart, slotEnd)
+      )
+      if (hayLibre) {
+        sugerencias.push({
+          fecha,
+          hora: slotStart,
+          label: `${fechaLegible(fecha)} a las ${horaLegible(slotStart)}`,
+        })
+      }
+      cursor += slotMin
+    }
+  }
+
+  return sugerencias
+}
+
+// ═══════════════════════════════════════════════════════════
+// GET /api/slots?servicio=id&fecha=YYYY-MM-DD
+// Devuelve los slots del día con disponibilidad real por empleada
+// ═══════════════════════════════════════════════════════════
 router.get('/', async (req, res) => {
   const { servicio, fecha } = req.query
   if (!servicio || !fecha) {
     return res.status(400).json({ error: 'Parámetros requeridos: servicio, fecha' })
   }
 
-  // Obtener servicio
-  const { data: svc, error: svcError } = await supabase
+  const { data: svc } = await supabase
     .from('servicios')
-    .select('*')
+    .select('id, duracion_min, buffer_min')
     .eq('id', servicio)
     .single()
-  
-  if (svcError) return res.status(404).json({ error: 'Servicio no encontrado' })
+  if (!svc) return res.status(404).json({ error: 'Servicio no encontrado' })
 
   const totalMin = svc.duracion_min + (svc.buffer_min ?? 10)
-
-  // Día de la semana
+  const { horario, slotMin } = await getHorarioSpa()
   const date    = new Date(fecha + 'T12:00:00')
-  const dia     = date.getDay()
-  const horario = SCHEDULE[dia]
-  if (!horario) return res.json([]) // Domingo cerrado
+  const diaKey  = DIA_KEYS[date.getDay()]
+  const diaConf = horario[diaKey]
 
-  // Citas del día
-  const { data: citasDia } = await supabase
-    .from('citas')
-    .select('hora_inicio, hora_fin')
-    .eq('fecha', fecha)
-    .neq('estado', 'cancelada')
+  if (!diaConf?.activo) return res.json([])
 
-  // Generar slots de 30 min
+  // Verificar si hay candidatas — sin ellas no hay slots disponibles
+  const candidatas = await getCandidatas(servicio)
+  if (!candidatas.length) return res.json([])
+
+  const empleadaIds = candidatas.map(e => e.id)
+  const [citas, bloqueos] = await Promise.all([
+    getCitasPorEmpleada(fecha, empleadaIds),
+    getBloqueosPorEmpleada(fecha, empleadaIds),
+  ])
+
   const slots  = []
-  let cursor   = timeToMinutes(horario.start)
-  const endMin = timeToMinutes(horario.end)
+  let cursor   = timeToMin(diaConf.open)
+  const finDia = timeToMin(diaConf.close)
 
-  while (cursor + totalMin <= endMin) {
-    const slotStart = minutesToTime(cursor)
-    const slotEnd   = minutesToTime(cursor + totalMin)
+  while (cursor + totalMin <= finDia) {
+    const slotStart = minToTime(cursor)
+    const slotEnd   = minToTime(cursor + totalMin)
 
-    const ocupado = (citasDia || []).some(c =>
-      intervalosSeCruzan(slotStart, slotEnd, c.hora_inicio, c.hora_fin)
+    // Disponible si AL MENOS UNA empleada está libre
+    const disponible = candidatas.some(e =>
+      empleadaEstaLibre(citas[e.id] || [], bloqueos[e.id] || [], slotStart, slotEnd)
     )
 
-    slots.push({ hora: slotStart, disponible: !ocupado })
-    cursor += 30
+    slots.push({ hora: slotStart, disponible })
+    cursor += slotMin
   }
 
+  res.set('Cache-Control', 'no-store')
   res.json(slots)
 })
 
-// ——— POST /api/bookings ——————————————————————————————————
+// ═══════════════════════════════════════════════════════════
+// POST /api/bookings — Crear reserva con asignación automática
+// ═══════════════════════════════════════════════════════════
 router.post('/', async (req, res) => {
-  const {
-    nombre, telefono, email, servicio_id,
-    fecha, hora_inicio, notas, origen,
-  } = req.body
+  const { nombre, telefono, email, servicio_id, fecha, hora_inicio, notas, origen } = req.body
 
   if (!nombre || !telefono || !servicio_id || !fecha || !hora_inicio) {
     return res.status(400).json({
@@ -109,160 +265,155 @@ router.post('/', async (req, res) => {
     })
   }
 
-  // Primero, crear o buscar el cliente
-  let cliente_id = null
-  
-  // Normalizar email a minúsculas
-  const emailNormalizado = email ? email.toLowerCase().trim() : ''
-  
-  // Buscar si el cliente ya existe por teléfono
-  const { data: clienteExistente } = await supabase
+  // Obtener servicio
+  const { data: svc } = await supabase
+    .from('servicios')
+    .select('*')
+    .eq('id', servicio_id)
+    .eq('activo', true)
+    .single()
+  if (!svc) return res.status(404).json({ error: 'Servicio no encontrado o inactivo' })
+
+  const duracion_total = svc.duracion_min + (svc.buffer_min ?? 10)
+  const hora_fin       = minToTime(timeToMin(hora_inicio) + duracion_total)
+
+  // ——— PASO 1: Encontrar candidatas ——————————————————————
+  const candidatas = await getCandidatas(servicio_id)
+  if (!candidatas.length) {
+    return res.status(409).json({
+      error: 'Este servicio no tiene personal disponible en este momento. Por favor contáctanos directamente.',
+      horarios_sugeridos: [],
+    })
+  }
+
+  // ——— PASO 2: Verificar disponibilidad por empleada ————
+  const empleadaIds = candidatas.map(e => e.id)
+  const [citasDia, bloqueosDia] = await Promise.all([
+    getCitasPorEmpleada(fecha, empleadaIds),
+    getBloqueosPorEmpleada(fecha, empleadaIds),
+  ])
+
+  const disponibles = candidatas.filter(e =>
+    empleadaEstaLibre(citasDia[e.id] || [], bloqueosDia[e.id] || [], hora_inicio, hora_fin)
+  )
+
+  if (!disponibles.length) {
+    const sugerencias = await sugerirHorarios(servicio_id, fecha)
+    const textoSug = sugerencias.length
+      ? ` Te sugerimos: ${sugerencias.map(s => s.label).join(' · ')}.`
+      : ' Por favor elige otra fecha o contáctanos.'
+    return res.status(409).json({
+      error: `No hay disponibilidad para ${svc.nombre} el ${fechaLegible(fecha)} a las ${horaLegible(hora_inicio)}.${textoSug}`,
+      horarios_sugeridos: sugerencias,
+    })
+  }
+
+  // ——— PASO 3: Elegir la de menor carga ese día ————————
+  const conCarga = disponibles.map(e => ({
+    ...e,
+    citas_hoy: (citasDia[e.id] || []).length,
+  }))
+  conCarga.sort((a, b) => a.citas_hoy - b.citas_hoy || a.nombre.localeCompare(b.nombre))
+  const asignada = conCarga[0]
+
+  // ——— PASO 4: Crear/encontrar cliente ——————————————————
+  const emailNorm = email ? email.toLowerCase().trim() : ''
+  let cliente_id  = null
+
+  const { data: cliEx } = await supabase
     .from('clientes')
     .select('id')
     .eq('telefono', telefono)
     .single()
-  
-  if (clienteExistente) {
-    cliente_id = clienteExistente.id
-    
-    // Actualizar email si se proporcionó uno nuevo
-    if (emailNormalizado) {
-      await supabase
-        .from('clientes')
-        .update({ email: emailNormalizado })
-        .eq('id', cliente_id)
+
+  if (cliEx) {
+    cliente_id = cliEx.id
+    if (emailNorm) {
+      await supabase.from('clientes').update({ email: emailNorm }).eq('id', cliente_id)
     }
   } else {
-    // Crear nuevo cliente con email en minúsculas
-    const { data: nuevoCliente, error: clienteError } = await supabase
+    const { data: nuevoC, error: cErr } = await supabase
       .from('clientes')
-      .insert({
-        nombre,
-        telefono,
-        email: emailNormalizado,
-        origen: origen ?? 'web'
-      })
+      .insert({ nombre, telefono, email: emailNorm, origen: origen ?? 'web' })
       .select()
       .single()
-    
-    if (clienteError) return res.status(500).json({ error: 'Error al registrar cliente' })
-    cliente_id = nuevoCliente.id
+    if (cErr) return res.status(500).json({ error: 'Error al registrar cliente' })
+    cliente_id = nuevoC.id
   }
 
-  // Validar servicio
-  const { data: svc, error: svcError } = await supabase
-    .from('servicios')
-    .select('*')
-    .eq('id', servicio_id)
-    .single()
-  
-  if (svcError) return res.status(404).json({ error: 'Servicio no encontrado' })
-
-  // Calcular hora_fin y duracion_total
-  const duracion_total = svc.duracion_min + (svc.buffer_min ?? 10)
-  const endMin   = timeToMinutes(hora_inicio) + duracion_total
-  const hora_fin = minutesToTime(endMin)
-
-  // Verificar disponibilidad
-  const { data: citasDia } = await supabase
+  // ——— Re-verificar antes de insertar (concurrencia) ————
+  const { data: citasFinales } = await supabase
     .from('citas')
     .select('hora_inicio, hora_fin')
     .eq('fecha', fecha)
+    .eq('empleado_id', asignada.id)
     .neq('estado', 'cancelada')
-  
-  const ocupado = (citasDia || []).some(c =>
-    intervalosSeCruzan(hora_inicio, hora_fin, c.hora_inicio, c.hora_fin)
+    .neq('estado', 'no_asistio')
+
+  const yaOcupado = (citasFinales || []).some(c =>
+    cruzan(hora_inicio, hora_fin, c.hora_inicio, c.hora_fin)
   )
 
-  if (ocupado) {
-    return res.status(409).json({ error: 'El horario ya no está disponible. Por favor elige otro.' })
+  if (yaOcupado) {
+    const sugerencias = await sugerirHorarios(servicio_id, fecha)
+    return res.status(409).json({
+      error: 'Este horario acaba de ser reservado. Por favor elige otro.',
+      horarios_sugeridos: sugerencias,
+    })
   }
 
-  // Crear cita
+  // ——— PASO 5: Crear la cita con empleada asignada ——————
   const { data: cita, error: citaError } = await supabase
     .from('citas')
     .insert({
       cliente_id,
       servicio_id,
+      empleado_id:    asignada.id,
       fecha,
       hora_inicio,
       hora_fin,
       duracion_total,
-      estado: 'confirmada', // Estado inicial: confirmada
-      origen: origen ?? 'web',
-      notas: notas ?? '',
+      estado:         'confirmada',
+      origen:         origen ?? 'web',
+      notas:          notas ?? '',
     })
     .select()
     .single()
 
-  if (citaError) return res.status(500).json({ error: 'Error al crear la reserva' })
+  if (citaError) return res.status(500).json({ error: 'Error al crear la reserva. Intenta de nuevo.' })
 
-  // ——— WEBHOOK n8n (preparado) ————————————————————————————
-  // 👉 Descomenta para enviar notificaciones automáticas por WhatsApp
-  // if (process.env.N8N_WEBHOOK_URL) {
-  //   fetch(process.env.N8N_WEBHOOK_URL, {
-  //     method: 'POST',
-  //     headers: { 'Content-Type': 'application/json' },
-  //     body: JSON.stringify({ 
-  //       cita, 
-  //       cliente: { nombre, telefono, email }, 
-  //       servicio: svc.nombre, 
-  //       tipo: 'nueva_cita' 
-  //     }),
-  //   }).catch(() => {})
-  // }
-
-  res.status(201).json({ 
-    ...cita, 
-    cliente: { nombre, telefono, email },
+  res.status(201).json({
+    ...cita,
+    cliente:  { nombre, telefono, email },
     servicio: svc.nombre,
-    message: 'Reserva creada exitosamente' 
+    empleada: { nombre: asignada.nombre, apellido: asignada.apellido },
+    message:  '¡Reserva confirmada!',
   })
 })
 
-// ——— GET /api/bookings (admin) ———————————————————————————
+// ——— GET /api/bookings/all (admin) ———————————————————————
 router.get('/all', requireAdmin, async (req, res) => {
   const { fecha } = req.query
-  
-  // Hacer join con clientes y servicios para obtener toda la info
   let query = supabase
     .from('citas')
-    .select(`
-      *,
-      clientes (nombre, telefono, email),
-      servicios (nombre, precio)
-    `)
-    .order('fecha', { ascending: false })
+    .select('*, clientes(nombre,telefono,email), servicios(nombre,precio), empleados(nombre,apellido)')
+    .order('fecha',       { ascending: false })
     .order('hora_inicio', { ascending: true })
-  
   if (fecha) query = query.eq('fecha', fecha)
-  
   const { data, error } = await query
   if (error) return res.status(500).json({ error: error.message })
   res.json(data)
 })
 
 // ——— PATCH /api/bookings/:id/status —————————————————————
-// Actualizar estado de una cita
-// Estados válidos: 'confirmada', 'cancelada', 'asistio', 'no_asistio'
 router.patch('/:id/status', requireAdmin, async (req, res) => {
   const { estado } = req.body
-  
-  // Validar que el estado sea válido
-  const estadosValidos = ['confirmada', 'cancelada', 'asistio', 'no_asistio']
-  if (!estadosValidos.includes(estado)) {
-    return res.status(400).json({ 
-      error: `Estado inválido. Debe ser uno de: ${estadosValidos.join(', ')}` 
-    })
+  const validos = ['confirmada','cancelada','realizada','no_asistio','atrasada','pendiente']
+  if (!validos.includes(estado)) {
+    return res.status(400).json({ error: `Estado inválido. Usa: ${validos.join(', ')}` })
   }
-  
   const { data, error } = await supabase
-    .from('citas')
-    .update({ estado })
-    .eq('id', req.params.id)
-    .select()
-    .single()
-  
+    .from('citas').update({ estado }).eq('id', req.params.id).select().single()
   if (error) return res.status(404).json({ error: 'Cita no encontrada' })
   res.json(data)
 })

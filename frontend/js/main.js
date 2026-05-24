@@ -132,8 +132,67 @@ export function showToast(message, type = 'success') {
   }, 3500)
 }
 
+// ——— CONFIG DINÁMICA DESDE BD ————————————————————————————
+export async function loadConfig() {
+  try {
+    const res = await fetch(`${SPA_CONFIG.apiBase}/config`)
+    if (!res.ok) return
+    const cfg = await res.json()
+    if (!cfg || !cfg.nombre_spa) return
+
+    // Actualizar número WhatsApp globalmente
+    if (cfg.whatsapp) {
+      const waNum = cfg.whatsapp.replace(/[^0-9]/g, '')
+      SPA_CONFIG.whatsapp = waNum
+
+      const menu = document.getElementById('wa-menu')
+      if (menu) {
+        const options = [
+          { label: 'Agendar una cita',            msg: 'Hola%20quiero%20agendar%20una%20cita%20en%20el%20spa' },
+          { label: 'Ver tratamientos disponibles', msg: 'Hola%20quisiera%20información%20sobre%20los%20tratamientos' },
+          { label: 'Consultar precios',            msg: 'Hola%20me%20gustaría%20consultar%20los%20precios%20de%20los%20servicios' },
+        ]
+        menu.innerHTML = options.map(o =>
+          `<a href="https://wa.me/${waNum}?text=${o.msg}" target="_blank" rel="noopener" class="wa-option">${o.label}</a>`
+        ).join('')
+      }
+
+      const ctaWaRegalo = document.getElementById('cta-wa-regalo')
+      if (ctaWaRegalo) ctaWaRegalo.href = `https://wa.me/${waNum}?text=Hola%20me%20interesa%20un%20certificado%20de%20regalo`
+
+      const contactWaBtn = document.getElementById('contact-wa-btn')
+      if (contactWaBtn) contactWaBtn.href = `https://wa.me/${waNum}?text=Hola%20quiero%20agendar%20una%20cita`
+    }
+
+    const elTel = document.getElementById('contact-telefono')
+    if (elTel && cfg.telefono) elTel.textContent = cfg.telefono
+
+    const elDir = document.getElementById('contact-direccion')
+    if (elDir && cfg.direccion) {
+      const city = cfg.ciudad || ''
+      elDir.innerHTML = cfg.direccion + (city ? `,<br>${city}` : '')
+    }
+
+    if (cfg.horario_atencion) {
+      const elHerHorario = document.getElementById('hero-horario')
+      if (elHerHorario) elHerHorario.textContent = cfg.horario_atencion
+
+      const elConHorario = document.getElementById('contact-horario')
+      if (elConHorario) elConHorario.textContent = cfg.horario_atencion
+    }
+
+    if (cfg.meta_title) document.title = cfg.meta_title
+    const metaDesc = document.querySelector('meta[name="description"]')
+    if (metaDesc && cfg.meta_description) metaDesc.setAttribute('content', cfg.meta_description)
+
+  } catch (_) {
+    // Fallo silencioso — valores hardcodeados permanecen
+  }
+}
+
 // ——— INIT AL CARGAR ——————————————————————————————————————
 document.addEventListener('DOMContentLoaded', () => {
   initNavbar()
   initWhatsApp()
+  loadConfig()
 })

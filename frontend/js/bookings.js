@@ -201,21 +201,15 @@ async function submitReserva() {
   state.email    = document.getElementById('input-email')?.value.trim()     ?? ''
   state.notas    = document.getElementById('input-notas')?.value.trim()     ?? ''
 
-  // Validaciones
   if (!state.nombre || !state.telefono) {
     showToast('Por favor completa nombre y teléfono', 'error')
     return
   }
-
-  // Validar email si se proporcionó
   if (state.email && !state.email.includes('@')) {
     showToast('Por favor ingresa un email válido con @', 'error')
     return
   }
-
-  // Validar teléfono (mínimo 7 dígitos)
-  const telefonoNumeros = state.telefono.replace(/\D/g, '')
-  if (telefonoNumeros.length < 7) {
+  if (state.telefono.replace(/\D/g, '').length < 7) {
     showToast('Por favor ingresa un teléfono válido', 'error')
     return
   }
@@ -223,31 +217,100 @@ async function submitReserva() {
   btn.disabled = true
   btn.textContent = 'Confirmando...'
 
-  const { data, error } = await fetchAPI('/bookings', {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      nombre:      state.nombre,
-      telefono:    state.telefono,
-      email:       state.email,
-      servicio_id: state.servicioId,
-      fecha:       state.fecha,
-      hora_inicio: state.hora,
-      notas:       state.notas,
-      origen:      'web',
-    }),
-  })
+  // Usamos fetch directo para acceder al body completo (incluye horarios_sugeridos)
+  let respData = null
+  let respError = null
+  try {
+    const res = await fetch(`${SPA_CONFIG.apiBase}/bookings`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nombre:      state.nombre,
+        telefono:    state.telefono,
+        email:       state.email,
+        servicio_id: state.servicioId,
+        fecha:       state.fecha,
+        hora_inicio: state.hora,
+        notas:       state.notas,
+        origen:      'web',
+      }),
+    })
+    respData = await res.json()
+    if (!res.ok) respError = respData
+  } catch {
+    respError = { error: 'Error de conexión. Por favor intenta de nuevo.' }
+  }
 
   btn.disabled = false
   btn.textContent = 'Confirmar reserva'
 
-  if (error) {
-    showToast(error, 'error')
+  if (respError) {
+    mostrarErrorDisponibilidad(respError)
     return
   }
 
+  // Limpiar error previo si existía
+  const errEl = document.getElementById('booking-error-msg')
+  if (errEl) errEl.remove()
+
   goToStep(4)
-  renderConfirmacion(data)
+  renderConfirmacion(respData)
+}
+
+// ——— MOSTRAR ERROR CON SUGERENCIAS ———————————————————————
+function mostrarErrorDisponibilidad(respError) {
+  showToast(respError.error || 'Error al confirmar la reserva', 'error')
+
+  // Quitar error previo
+  const prev = document.getElementById('booking-error-msg')
+  if (prev) prev.remove()
+
+  const btn = document.getElementById('btn-confirmar')
+  if (!btn) return
+
+  const errEl = document.createElement('div')
+  errEl.id = 'booking-error-msg'
+  errEl.style.cssText = `
+    margin-top:16px;padding:16px 20px;
+    background:rgba(254,226,226,0.9);border:1px solid #fca5a5;
+    font-family:var(--font-body);font-size:0.82rem;color:#991b1b;
+    line-height:1.6;
+  `
+
+  const sugerencias = respError.horarios_sugeridos || []
+  const sugHTML = sugerencias.length
+    ? `<div style="margin-top:12px">
+        <p style="font-weight:600;margin-bottom:8px;color:#7f1d1d">Horarios disponibles:</p>
+        ${sugerencias.map(s => `
+          <button data-fecha="${s.fecha}" data-hora="${s.hora}"
+            style="display:block;width:100%;text-align:left;padding:8px 12px;margin-bottom:6px;
+                   background:white;border:1px solid #fca5a5;cursor:pointer;
+                   font-family:var(--font-body);font-size:0.8rem;color:#7f1d1d;
+                   transition:background 0.2s"
+            onmouseover="this.style.background='#fee2e2'"
+            onmouseout="this.style.background='white'">
+            → ${s.label}
+          </button>
+        `).join('')}
+      </div>`
+    : ''
+
+  errEl.innerHTML = `<p>${respError.error || 'Este horario no está disponible.'}</p>${sugHTML}`
+
+  // Botones de sugerencia — al hacer clic preseleccionan fecha y hora
+  btn.parentNode.insertBefore(errEl, btn)
+
+  errEl.querySelectorAll('button[data-fecha]').forEach(b => {
+    b.addEventListener('click', () => {
+      state.fecha = b.dataset.fecha
+      state.hora  = b.dataset.hora
+      errEl.remove()
+      renderDates()
+      goToStep(2)
+      // Mostrar slots después de que renderDates actualice el DOM
+      setTimeout(() => loadSlots(), 50)
+    })
+  })
 }
 
 // ——— PASO 4: CONFIRMACIÓN ————————————————————————————————
