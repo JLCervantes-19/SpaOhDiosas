@@ -51,6 +51,14 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '50kb' }));
 app.use(express.urlencoded({ extended: true, limit: '50kb' }));
+
+if (process.env.NODE_ENV === 'development') {
+  app.use((_, res, next) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    next();
+  });
+}
+
 app.use(express.static(join(__dirname, 'frontend')));
 
 // ── Rutas API ───────────────────────────────────────────────
