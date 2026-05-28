@@ -64,6 +64,7 @@ function renderStep1() {
       </div>
       <div style="text-align:right;flex-shrink:0">
         <p style="color:var(--gold);font-size:0.9rem;font-weight:500">${formatPrice(s.precio)}</p>
+        <div class="svc-radio"></div>
       </div>
     </button>
   `).join('')

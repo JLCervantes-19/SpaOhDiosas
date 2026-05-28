@@ -30,26 +30,29 @@ Tienes acceso completo vía MCP de Supabase. Puedes hacer cambios directos a la 
 
 ## Vercel — Despliegue
 
-**Proyecto:** `jhan-cervantes-projects/spa-oh-diosas`  
+**Proyecto:** `jhan-cervantes-projects/spa`  
 **Scope/Team:** `jhan-cervantes-projects`  
 **GitHub:** `JLCervantes-19/SpaOhDiosas`  
-**Último deployment prod:** https://spa-oh-diosas-bubwoyqqv-jhan-cervantes-projects.vercel.app
+**URL Producción:** https://spa-blush-theta.vercel.app  
+**URL por equipo:** https://spa-jhan-cervantes-projects.vercel.app
+
+> El proyecto fue renombrado de `spa-oh-diosas` → `spa`. Usar la URL de producción de arriba, no URLs con hash.
 
 ```bash
 # Ver deployments
 vercel ls --scope jhan-cervantes-projects
 
-# Ver logs de un deployment específico
-vercel logs https://spa-oh-diosas-bubwoyqqv-jhan-cervantes-projects.vercel.app
+# Ver logs del último deployment
+vercel logs https://spa-jhan-cervantes-projects.vercel.app
 
 # Ver logs en tiempo real
-vercel logs --follow https://spa-oh-diosas-bubwoyqqv-jhan-cervantes-projects.vercel.app
+vercel logs --follow https://spa-jhan-cervantes-projects.vercel.app
 
-# Inspeccionar un deployment
-vercel inspect https://spa-oh-diosas-bubwoyqqv-jhan-cervantes-projects.vercel.app
+# Inspeccionar producción
+vercel inspect https://spa-blush-theta.vercel.app
 
 # Nuevo deploy
-cd "/Users/macuser/Desktop/LANDING PROYECTS/Spa_OhDiosas/SISTEMA WEB/SpaOhDiosas" && vercel --prod
+cd "/Users/macuser/Desktop/LANDING PROYECTS/Spa_OhDiosas/SISTEMA WEB/SpaOhDiosas" && vercel --prod --scope jhan-cervantes-projects
 ```
 
 ## Render — Infraestructura
