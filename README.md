@@ -1,206 +1,240 @@
-# 🌿 Serenità Spa - Sistema de Gestión y Chat
+# Spa Oh Diosas — Sitio Web Principal
 
-Sistema completo de gestión de citas y chat inteligente para Serenità Spa.
+Sitio web de cara al cliente para el spa Oh Diosas by Tatiana Zuleta. Incluye landing page, catálogo de servicios, sistema de reservas online y chatbot con IA conectado a N8N + Supabase.
 
-## 🚀 Versión 2.0
-
-Esta versión incluye mejoras significativas en el sistema de chat, correcciones críticas y nueva funcionalidad de cambio de fecha.
-
-### ✨ Novedades v2.0
-
-- ✅ Cambio de fecha de citas directamente en el chat
-- ✅ Corrección de reglas de negocio (horarios, domingos, buffer)
-- ✅ Corrección de zona horaria en fechas
-- ✅ Todos los horarios disponibles visibles (mañana y tarde)
-- ✅ Mejor experiencia de usuario
+**Stack:** Node.js 24 · Express 4 · Supabase · Vanilla JS ES Modules · Vercel Serverless
 
 ---
 
-## 📚 Documentación
-
-La documentación completa está en [`docs/v2.0/`](docs/v2.0/):
-
-- **[README](docs/v2.0/README.md)** - Inicio rápido y resumen
-- **[Correcciones](docs/v2.0/correcciones/CORRECCIONES_V2.md)** - Todas las correcciones implementadas
-- **[Flujos del Chat](docs/v2.0/flujos/FLUJOS_CHAT.md)** - Diagramas y explicación de flujos
-- **[Guía de Pruebas](docs/v2.0/guias/GUIA_PRUEBAS.md)** - Cómo probar el sistema
-
----
-
-## 🏃 Inicio Rápido
-
-### 1. Instalación
-
-```bash
-npm install
-```
-
-### 2. Configuración
-
-Copia `.env.example` a `.env` y configura tus credenciales de Supabase:
-
-```env
-SUPABASE_URL=https://tu-proyecto.supabase.co
-SUPABASE_ANON_KEY=tu-anon-key
-PORT=3000
-```
-
-### 3. Ejecutar
-
-```bash
-npm start
-```
-
-El servidor estará disponible en `http://localhost:3000`
-
----
-
-## 🎯 Características Principales
-
-### Sistema de Chat Inteligente
-
-- 💬 Consulta de citas por nombre y email
-- 🗓️ Cambio de fecha de citas (NUEVO en v2.0)
-- ❌ Cancelación de citas
-- 📋 Información de servicios
-- 📍 Horarios y ubicación
-- 🎁 Certificados de regalo
-
-### Sistema de Reservas
-
-- 📅 Calendario interactivo
-- ⏰ Selección de horarios disponibles
-- 💳 Gestión de servicios
-- 📧 Confirmación por email
-
-### Reglas de Negocio
-
-- **Horarios**: Lun-Vie 9:00-18:00, Sáb 9:00-16:00, Dom CERRADO
-- **Slots**: Intervalos de 30 minutos
-- **Buffer**: 10 minutos entre citas
-- **Validación**: 24 horas de anticipación para cambios
-
----
-
-## 🛠️ Stack Tecnológico
-
-- **Backend**: Node.js + Express
-- **Base de datos**: Supabase (PostgreSQL)
-- **Frontend**: HTML + CSS + JavaScript vanilla
-- **Hosting**: Vercel
-
----
-
-## 📁 Estructura del Proyecto
+## Estructura del proyecto
 
 ```
 SpaOhDiosas/
-├── api/                    # API endpoints para Vercel
-├── backend/
-│   ├── lib/               # Configuración de Supabase
-│   ├── routes/            # Rutas de la API
-│   └── services/          # Lógica de negocio (chatbot, etc.)
+├── api/
+│   └── index.js              # Punto de entrada serverless (Vercel)
+├── config/
+│   └── supabase.js           # Cliente Supabase singleton (server-side)
+├── routes/
+│   ├── bookings.js           # GET /api/slots, POST /api/bookings
+│   ├── chat.js               # POST /api/chat/session, /message, /appointments
+│   ├── services.js           # GET /api/services
+│   └── contact.js            # POST /api/contact
+├── services/
+│   └── n8n.js                # Integración con N8N webhook
 ├── frontend/
-│   ├── css/               # Estilos
-│   ├── js/                # JavaScript del frontend
-│   └── *.html             # Páginas HTML
+│   ├── index.html            # Landing page
+│   ├── reservas.html         # Reservas online
+│   ├── servicios.html        # Catálogo de servicios
+│   ├── chat.html             # Página del chatbot
+│   ├── css/                  # Estilos
+│   ├── js/                   # JavaScript cliente (main, bookings, chat)
+│   ├── icons/                # Iconos PWA
+│   └── manifest.json         # Config PWA
 ├── database/
-│   └── migrations/        # Migraciones de BD
-├── docs/
-│   ├── v2.0/              # Documentación v2.0 (ACTUAL)
-│   └── archivo_v1/        # Documentación antigua
-├── data/                  # Datos estáticos (servicios, testimonios)
-├── .env                   # Variables de entorno (no en Git)
-├── .env.example           # Ejemplo de variables de entorno
-├── package.json           # Dependencias
-└── vercel.json            # Configuración de Vercel
+│   ├── schema.sql            # Schema completo de la BD
+│   └── migration_asignacion.sql
+├── server.js                 # Express app (dev local + Vercel)
+├── vercel.json               # Routing y headers de seguridad
+└── package.json              # Node 24, "type": "module"
 ```
 
 ---
 
-## 🧪 Pruebas
+## Despliegue manual en Vercel
 
-Ver [Guía de Pruebas](docs/v2.0/guias/GUIA_PRUEBAS.md) para instrucciones detalladas.
+### Paso 1 — Tener listo el repositorio en GitHub
 
-### Pruebas Rápidas
+El repositorio ya existe: `JLCervantes-19/SpaOhDiosas`
+
+Si necesitas hacer push de cambios:
 
 ```bash
-# Probar detección de intenciones
-node test_intent_detection.js
-
-# Verificar conexión a BD
-node database/migrations/test_connection.js
+cd "/ruta/a/SpaOhDiosas"
+git add .
+git commit -m "deploy: descripcion del cambio"
+git push origin main
 ```
 
 ---
 
-## 🚀 Deploy
+### Paso 2 — Importar el proyecto en Vercel
 
-### Vercel
+1. Ve a [vercel.com](https://vercel.com) e inicia sesión con tu cuenta `jhan-cervantes-projects`
+2. Clic en **Add New Project**
+3. Busca y selecciona el repositorio `JLCervantes-19/SpaOhDiosas`
+4. Configura los ajustes de construcción:
 
-El proyecto está configurado para deploy automático en Vercel:
+| Ajuste | Valor |
+|--------|-------|
+| **Framework Preset** | `Other` |
+| **Root Directory** | `./` (dejar como está) |
+| **Build Command** | `npm install` |
+| **Output Directory** | *(dejar vacío)* |
+| **Install Command** | `npm install` |
+| **Node.js Version** | `24.x` |
 
-1. Conecta tu repositorio de GitHub a Vercel
-2. Configura las variables de entorno en Vercel
-3. Deploy automático en cada push a `main`
+> Vercel detecta automáticamente `api/index.js` como función serverless. El `vercel.json` ya tiene configurado el routing completo.
 
-### Variables de Entorno en Vercel
+---
+
+### Paso 3 — Configurar las variables de entorno
+
+En la sección **Environment Variables** del formulario de importación (o en Settings → Environment Variables del proyecto), agrega todas las siguientes variables. Selecciona los entornos **Production**, **Preview** y **Development** para cada una.
+
+#### Variables obligatorias
+
+| Variable | Descripcion | Valor |
+|----------|-------------|-------|
+| `SUPABASE_URL` | URL del proyecto Supabase | `https://whouejjrpjcvoueyajbu.supabase.co` |
+| `SUPABASE_SERVICE_KEY` | Clave de servicio (solo backend, nunca expuesta al cliente) | Ver abajo |
+| `N8N_CHAT_WEBHOOK` | Webhook del chatbot N8N | `https://n8n-spa-6y2d.onrender.com/webhook/chatweb` |
+| `ADMIN_TOKEN` | Token secreto para endpoints de administracion | Cualquier cadena segura (ej: genera con `openssl rand -hex 32`) |
+
+#### Donde encontrar `SUPABASE_SERVICE_KEY`
+
+1. Ve a [supabase.com](https://supabase.com) → tu proyecto `BD_Spa's_Startup`
+2. Settings → API
+3. Copia el valor de **service_role** (en la seccion "Project API keys")
+4. **IMPORTANTE:** Esta clave tiene acceso total a la BD. Nunca va en el frontend ni en el repositorio.
+
+#### Variables opcionales
+
+| Variable | Descripcion | Valor por defecto |
+|----------|-------------|-------------------|
+| `PORT` | Puerto local (solo dev) | `3000` |
+
+---
+
+### Paso 4 — Hacer deploy
+
+1. Clic en **Deploy**
+2. Vercel instala dependencias y despliega la funcion serverless
+3. Al terminar, obtienes una URL como `https://spa-oh-diosas-xxxx.vercel.app`
+
+**Para promover a produccion** (si usas un dominio personalizado), ve a Deployments → el deployment mas reciente → **Promote to Production**.
+
+---
+
+### Paso 5 — Verificar que funciona
+
+Abre la URL desplegada y prueba estos endpoints:
 
 ```
-SUPABASE_URL=https://tu-proyecto.supabase.co
-SUPABASE_ANON_KEY=tu-anon-key
+GET  /api/health             → {"status":"ok","app":"SpaOhDiosas"}
+GET  /api/services           → lista de servicios desde Supabase
+GET  /api/slots?servicioId=1&fecha=2026-06-01  → horarios disponibles
+```
+
+Si el health check responde pero `/api/services` falla, revisa que `SUPABASE_URL` y `SUPABASE_SERVICE_KEY` esten correctos en las variables de entorno.
+
+---
+
+### Paso 6 — Actualizar variables de entorno (si ya existe el proyecto)
+
+Si el proyecto ya existe en Vercel y solo quieres actualizar variables:
+
+1. Ve a [vercel.com](https://vercel.com) → tu proyecto `spa-oh-diosas`
+2. Settings → Environment Variables
+3. Edita o agrega la variable
+4. Ve a Deployments → **Redeploy** el ultimo deployment para que tome efecto
+
+---
+
+## Deploy via CLI (alternativa)
+
+```bash
+# Instalar CLI si no lo tienes
+npm install -g vercel
+
+# Desde la carpeta del proyecto
+cd "/ruta/a/SpaOhDiosas"
+
+# Vincular al proyecto existente
+vercel link --scope jhan-cervantes-projects --project spa-oh-diosas
+
+# Agregar variables de entorno (una por una)
+vercel env add SUPABASE_URL production
+vercel env add SUPABASE_SERVICE_KEY production
+vercel env add N8N_CHAT_WEBHOOK production
+vercel env add ADMIN_TOKEN production
+
+# Deploy a produccion
+vercel --prod
 ```
 
 ---
 
-## 📝 Changelog
+## Desarrollo local
 
-### v2.0 (Abril 2026)
+```bash
+# Instalar dependencias
+npm install
 
-#### Nuevas Funcionalidades
-- ✨ Cambio de fecha de citas en el chat
+# Crear archivo .env (nunca lo subas a GitHub)
+cp .env.example .env
+# Editar .env con tus valores reales
 
-#### Correcciones
-- 🐛 Botón "Consultar mis citas" funcionando correctamente
-- 🐛 Reglas de negocio implementadas correctamente
-- 🐛 Problema de zona horaria resuelto
-- 🐛 Horarios de tarde ahora visibles
+# Iniciar servidor
+npm start
+# → http://localhost:3000
+```
 
-#### Mejoras
-- 📈 Mejor experiencia de usuario en el chat
-- 📈 Validación de disponibilidad en tiempo real
-- 📈 Código más mantenible y documentado
+Contenido del `.env` para desarrollo:
 
-### v1.0 (Marzo 2026)
-- 🎉 Lanzamiento inicial
-
----
-
-## 🤝 Contribuir
-
-1. Lee la documentación en [`docs/v2.0/`](docs/v2.0/)
-2. Crea una rama para tu feature: `git checkout -b feature/nueva-funcionalidad`
-3. Haz commit de tus cambios: `git commit -m 'Agregar nueva funcionalidad'`
-4. Push a la rama: `git push origin feature/nueva-funcionalidad`
-5. Crea un Pull Request
+```env
+SUPABASE_URL=https://whouejjrpjcvoueyajbu.supabase.co
+SUPABASE_SERVICE_KEY=tu_service_role_key_aqui
+N8N_CHAT_WEBHOOK=https://n8n-spa-6y2d.onrender.com/webhook/chatweb
+ADMIN_TOKEN=cualquier-token-secreto-local
+PORT=3000
+```
 
 ---
 
-## 📞 Contacto
+## Variables de entorno — resumen rapido
 
-**Serenità Spa**  
-📍 Carrera 1 # 2-3, Riohacha, La Guajira, Colombia  
-📞 +57 300 123 4567  
-🌐 [serenita-spa.vercel.app](https://serenita-spa.vercel.app)
-
----
-
-## 📄 Licencia
-
-Este proyecto es privado y confidencial.
+| Variable | Obligatoria | Expuesta al cliente | Donde va |
+|----------|-------------|---------------------|----------|
+| `SUPABASE_URL` | Si | No | Solo servidor |
+| `SUPABASE_SERVICE_KEY` | Si | **NUNCA** | Solo servidor |
+| `N8N_CHAT_WEBHOOK` | Si | No | Solo servidor |
+| `ADMIN_TOKEN` | Si | No | Solo servidor |
 
 ---
 
-**Versión**: 2.0  
-**Estado**: ✅ Estable  
-**Última actualización**: Abril 2026
+## Endpoints de la API
+
+| Metodo | Ruta | Descripcion | Autenticacion |
+|--------|------|-------------|---------------|
+| GET | `/api/health` | Estado del servidor | Publica |
+| GET | `/api/services` | Lista de servicios | Publica |
+| GET | `/api/testimonials` | Testimonios aprobados | Publica |
+| GET | `/api/config` | Config publica del negocio | Publica |
+| GET | `/api/slots` | Horarios disponibles | Publica |
+| POST | `/api/bookings` | Crear reserva | Publica |
+| GET | `/api/bookings/all` | Todas las citas | `x-admin-token` |
+| PATCH | `/api/bookings/:id/status` | Cambiar estado de cita | `x-admin-token` |
+| POST | `/api/chat/session` | Iniciar sesion de chat | Publica |
+| POST | `/api/chat/message` | Enviar mensaje al chatbot | Publica |
+| GET | `/api/chat/services` | Servicios para el chat | Publica |
+| POST | `/api/chat/appointments` | Citas via chat | Publica |
+| POST | `/api/contact` | Formulario de contacto | Publica |
+
+---
+
+## Reglas de negocio
+
+- Horarios: Lun-Vie 9:00-18:00, Sab 9:00-16:00, Dom CERRADO
+- Slots: intervalos de 30 minutos, buffer de 10 min entre citas
+- Asignacion automatica de empleada (menor carga del dia)
+- Validacion de disponibilidad en tiempo real antes de confirmar reserva
+- Rate limiting: 100 req/15min general, 20/1h chat, 10/15min reservas
+
+---
+
+## Seguridad
+
+- `SUPABASE_SERVICE_KEY` solo en servidor, nunca en frontend
+- Headers en `vercel.json`: CSP, X-Frame-Options, X-XSS-Protection, Referrer-Policy
+- Rate limiting por IP en todos los endpoints
+- Endpoint admin protegido por `x-admin-token` header
