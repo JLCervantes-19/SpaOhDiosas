@@ -1,9 +1,9 @@
 // ============================================================
 // sw.js — Service Worker PWA
-// v5: HTML desde red, JS/CSS en caché, API con TTL corto
+// v6: bust caché para óvalo de selección de servicio
 // ============================================================
 
-const CACHE_VERSION = 'v5'
+const CACHE_VERSION = 'v6'
 const CACHE_STATIC  = `spa-static-${CACHE_VERSION}`
 const CACHE_API     = `spa-api-${CACHE_VERSION}`
 const API_TTL_MS    = 5 * 60 * 1000  // 5 minutos para servicios/testimonios
