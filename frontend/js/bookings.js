@@ -58,7 +58,7 @@ function renderStep1() {
       border:1px solid rgba(201,169,97,0.15);cursor:pointer;
       transition:all 0.3s ease;font-family:var(--font-body);display:flex;
       justify-content:space-between;align-items:flex-start;gap:16px;
-      ${state.servicioId === s.id ? 'border-color:var(--gold);background:rgba(201,169,97,0.04)' : ''}
+      ${String(state.servicioId) === String(s.id) ? 'border-color:var(--gold);background:rgba(201,169,97,0.04)' : ''}
     ">
       <div style="flex:1">
         <h4 class="font-display" style="font-size:1rem;color:var(--forest);font-weight:400;margin-bottom:4px">${s.nombre}</h4>
@@ -71,9 +71,9 @@ function renderStep1() {
       <div style="text-align:right;flex-shrink:0">
         <p style="color:var(--gold);font-size:0.9rem;font-weight:500">${formatPrice(s.precio)}</p>
         <div style="width:20px;height:20px;border-radius:50%;border:2px solid rgba(201,169,97,0.3);margin-top:8px;margin-left:auto;
-          background:${state.servicioId === s.id ? 'var(--gold)' : 'transparent'};
+          background:${String(state.servicioId) === String(s.id) ? 'var(--gold)' : 'transparent'};
           display:flex;align-items:center;justify-content:center;transition:all 0.3s">
-          ${state.servicioId === s.id ? '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" stroke="var(--forest)" stroke-width="3" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>' : ''}
+          ${String(state.servicioId) === String(s.id) ? '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" stroke="var(--forest)" stroke-width="3" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>' : ''}
         </div>
       </div>
     </button>
@@ -81,7 +81,7 @@ function renderStep1() {
 
   container.querySelectorAll('.service-select-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      state.servicioId = Number(btn.dataset.id)
+      state.servicioId = btn.dataset.id
       renderStep1() // re-render para actualizar selección
     })
   })
@@ -177,7 +177,7 @@ function renderResumen() {
   const el = document.getElementById('resumen-reserva')
   if (!el) return
 
-  const servicio = state.servicios.find(s => s.id === state.servicioId)
+  const servicio = state.servicios.find(s => String(s.id) === String(state.servicioId))
   if (!servicio || !state.fecha || !state.hora) return
 
   const fecha = new Date(state.fecha + 'T12:00')
@@ -315,7 +315,7 @@ function mostrarErrorDisponibilidad(respError) {
 
 // ——— PASO 4: CONFIRMACIÓN ————————————————————————————————
 function renderConfirmacion(cita) {
-  const servicio = state.servicios.find(s => s.id === state.servicioId)
+  const servicio = state.servicios.find(s => String(s.id) === String(state.servicioId))
   const fecha    = new Date((state.fecha ?? cita?.fecha) + 'T12:00')
   const waText   = encodeURIComponent(`Hola, acabo de reservar ${servicio?.nombre ?? 'una cita'} para el ${fecha.toLocaleDateString('es-CO')} a las ${state.hora}`)
 
