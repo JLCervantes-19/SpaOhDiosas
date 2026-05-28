@@ -382,6 +382,56 @@ a { text-decoration: none; color: inherit; }
   color: var(--white);
 }
 
+/* ——— TARJETAS SELECCIÓN SERVICIO ————————————————————————— */
+.service-select-btn {
+  width: 100%;
+  text-align: left;
+  padding: 20px;
+  background: white;
+  border: 1px solid rgba(201,169,97,0.15);
+  cursor: pointer;
+  transition: border-color 0.25s ease, background 0.25s ease;
+  font-family: var(--font-body);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.service-select-btn:hover {
+  border-color: rgba(201,169,97,0.45);
+  background: rgba(201,169,97,0.02);
+}
+.service-select-btn.is-selected {
+  border-color: var(--gold);
+  background: rgba(201,169,97,0.05);
+}
+.svc-radio {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(201,169,97,0.35);
+  margin-top: 8px;
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: background 0.25s ease, border-color 0.25s ease;
+  position: relative;
+}
+.service-select-btn.is-selected .svc-radio {
+  background: var(--gold);
+  border-color: var(--gold);
+}
+.service-select-btn.is-selected .svc-radio::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 6px;
+  width: 5px;
+  height: 9px;
+  border-right: 2.5px solid white;
+  border-bottom: 2.5px solid white;
+  transform: rotate(45deg);
+}
+
 /* ——— INPUT ——————————————————————————————————————————————— */
 .input-luxury {
   width: 100%;
