@@ -81,7 +81,7 @@ function renderStep1() {
 
   container.querySelectorAll('.service-select-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      state.servicioId = btn.dataset.id
+      state.servicioId = Number(btn.dataset.id)
       renderStep1() // re-render para actualizar selección
     })
   })
