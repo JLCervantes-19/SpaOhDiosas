@@ -10,15 +10,16 @@ const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov'
 
 // Estado del formulario
 const state = {
-  step:       1,
-  servicioId: null,
-  fecha:      null,
-  hora:       null,
-  nombre:     '',
-  telefono:   '',
-  email:      '',
-  notas:      '',
-  servicios:  [],
+  step:          1,
+  servicioId:    null,
+  fecha:         null,
+  hora:          null,
+  nombre:        '',
+  telefono:      '',
+  email:         '',
+  notas:         '',
+  servicios:     [],
+  horarioSemana: null,
 }
 
 // ——— NAVEGACIÓN DE PASOS ——————————————————————————————————
@@ -50,7 +51,11 @@ function updateStepIndicators() {
 // ——— PASO 1: SELECCIÓN DE SERVICIO ——————————————————————
 function renderStep1() {
   const container = document.getElementById('step1-servicios')
-  if (!container || !state.servicios.length) return
+  if (!container) return
+  if (!state.servicios.length) {
+    container.innerHTML = `<p style="font-family:var(--font-body);font-size:0.88rem;color:rgba(28,28,30,0.5);padding:16px 0">No hay servicios disponibles en este momento.</p>`
+    return
+  }
 
   container.innerHTML = state.servicios.map(s => `
     <button class="service-select-btn" data-id="${s.id}">
@@ -84,21 +89,14 @@ function renderStep1() {
 // ——— PASO 2: FECHA & HORA ————————————————————————————————
 function getAvailableDates() {
   const dates = []
-  const now = new Date()
-  
-  // Configurar zona horaria de Colombia (UTC-5)
-  const colombiaTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Bogota' }))
-  const currentHour = colombiaTime.getHours()
-  
-  // Si son más de las 18:00 (6 PM), empezar desde 2 días adelante
-  // Si no, empezar desde mañana
-  const startDay = currentHour >= 18 ? 2 : 1
-  
-  for (let i = startDay; dates.length < 15; i++) {
-    const d = new Date(colombiaTime)
-    d.setDate(colombiaTime.getDate() + i)
-    // Excluir domingos (día 0)
-    if (d.getDay() !== 0) dates.push(d)
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
+  const hoy = new Date(now)
+  hoy.setHours(0, 0, 0, 0)
+
+  for (let i = 0; dates.length < 30; i++) {
+    const d = new Date(hoy)
+    d.setDate(hoy.getDate() + i)
+    dates.push(d)
   }
   return dates
 }
@@ -106,6 +104,8 @@ function getAvailableDates() {
 function formatDateKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
+
+const DIA_KEYS_SEMANA = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado']
 
 function renderDates() {
   const container = document.getElementById('fechas-grid')
@@ -115,10 +115,15 @@ function renderDates() {
   container.innerHTML = dates.map(d => {
     const key      = formatDateKey(d)
     const selected = state.fecha === key
+    const diaKey   = DIA_KEYS_SEMANA[d.getDay()]
+    const diaConf  = state.horarioSemana?.[diaKey]
+    const diaActivo = diaConf?.activo !== false
     return `
-      <button class="date-btn ${selected ? 'selected' : ''}" data-fecha="${key}" style="
-        ${selected ? 'background:var(--forest);border-color:var(--forest);color:var(--cream)' : ''}
-      ">
+      <button class="date-btn ${selected ? 'selected' : ''} ${!diaActivo ? 'disabled' : ''}"
+        data-fecha="${key}" ${!diaActivo ? 'disabled' : ''} style="
+          ${selected ? 'background:var(--forest);border-color:var(--forest);color:var(--cream)' : ''}
+          ${!diaActivo ? 'opacity:0.35;cursor:not-allowed' : ''}
+        ">
         <div style="font-family:var(--font-body);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;opacity:0.6;margin-bottom:2px">${DIAS[d.getDay()]}</div>
         <div class="font-display" style="font-size:1.4rem;${selected ? 'color:var(--gold)' : 'color:var(--forest)'}">${d.getDate()}</div>
         <div style="font-family:var(--font-body);font-size:0.6rem;text-transform:uppercase;opacity:0.5">${MESES[d.getMonth()]}</div>
@@ -126,7 +131,7 @@ function renderDates() {
     `
   }).join('')
 
-  container.querySelectorAll('.date-btn').forEach(btn => {
+  container.querySelectorAll('.date-btn:not(:disabled)').forEach(btn => {
     btn.addEventListener('click', async () => {
       state.fecha = btn.dataset.fecha
       state.hora  = null
@@ -146,12 +151,29 @@ async function loadSlots() {
 
   const { data, error } = await fetchAPI(`/slots?servicio=${state.servicioId}&fecha=${state.fecha}`)
   if (error || !data?.length) {
+    grid.innerHTML = `<p style="font-family:var(--font-body);font-size:0.85rem;color:rgba(28,28,30,0.4);grid-column:1/-1;padding:16px 0">Error cargando horarios. Recarga la página.</p>`
+    return
+  }
+
+  // Filtrar slots dentro de las próximas 2 horas
+  const nowCol = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
+  const fechaSeleccionada = state.fecha
+  const esHoy = fechaSeleccionada === `${nowCol.getFullYear()}-${String(nowCol.getMonth()+1).padStart(2,'0')}-${String(nowCol.getDate()).padStart(2,'0')}`
+  const filteredData = data.filter(slot => {
+    if (!esHoy) return true
+    const [h, m] = slot.hora.split(':').map(Number)
+    const slotMin = h * 60 + m
+    const nowMin = nowCol.getHours() * 60 + nowCol.getMinutes() + 120 // +2 horas
+    return slotMin >= nowMin
+  })
+
+  if (!filteredData.length) {
     grid.innerHTML = `<p style="font-family:var(--font-body);font-size:0.85rem;color:rgba(28,28,30,0.4);grid-column:1/-1;padding:16px 0">No hay horarios disponibles para este día.</p>`
     return
   }
 
-  grid.innerHTML = data.map(slot => `
-    <button class="slot-btn ${!slot.disponible ? '' : ''} ${state.hora === slot.hora ? 'selected' : ''}"
+  grid.innerHTML = filteredData.map(slot => `
+    <button class="slot-btn ${state.hora === slot.hora ? 'selected' : ''}"
       data-hora="${slot.hora}" ${!slot.disponible ? 'disabled' : ''}>
       ${slot.hora}
     </button>
@@ -356,6 +378,14 @@ export async function initBooking() {
   // Cargar servicios
   const { data } = await fetchAPI('/services')
   state.servicios = data ?? []
+
+  // Cargar horario del spa para validar días disponibles
+  try {
+    const { data: cfg } = await fetchAPI('/config')
+    state.horarioSemana = cfg?.horario_semana || null
+  } catch (_) {
+    state.horarioSemana = null
+  }
 
   // Preselección por URL param
   const params = new URLSearchParams(window.location.search)

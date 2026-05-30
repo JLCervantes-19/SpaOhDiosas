@@ -272,8 +272,33 @@ router.post('/', async (req, res) => {
     });
   }
 
-  const conCarga = disponibles.map(e => ({ ...e, citas_hoy: (citasDia[e.id] || []).length }));
-  conCarga.sort((a, b) => a.citas_hoy - b.citas_hoy || a.nombre.localeCompare(b.nombre));
+  // Contar citas realizadas últimos 30 días para distribución justa
+  const hace30 = new Date();
+  hace30.setDate(hace30.getDate() - 30);
+  const fecha30 = hace30.toISOString().split('T')[0];
+
+  const disponiblesIds = disponibles.map(e => e.id);
+  const { data: cargaMes } = await supabase
+    .from('citas')
+    .select('empleado_id')
+    .in('empleado_id', disponiblesIds)
+    .eq('estado', 'realizada')
+    .gte('fecha', fecha30);
+
+  const cargaMesMap = {};
+  disponiblesIds.forEach(id => { cargaMesMap[id] = 0; });
+  (cargaMes || []).forEach(c => { if (cargaMesMap[c.empleado_id] !== undefined) cargaMesMap[c.empleado_id]++; });
+
+  const conCarga = disponibles.map(e => ({
+    ...e,
+    citas_mes: cargaMesMap[e.id] || 0,
+    citas_hoy: (citasDia[e.id] || []).length,
+  }));
+  conCarga.sort((a, b) =>
+    a.citas_mes - b.citas_mes ||
+    a.citas_hoy - b.citas_hoy ||
+    a.nombre.localeCompare(b.nombre)
+  );
   const asignada = conCarga[0];
 
   const emailNorm = email ? email.toLowerCase().trim() : '';
@@ -367,7 +392,7 @@ router.get('/all', requireAdmin, async (req, res) => {
 router.patch('/:id/status', requireAdmin, async (req, res) => {
   const supabase = getSupabaseClient();
   const { estado } = req.body;
-  const validos = ['confirmada', 'cancelada', 'realizada', 'no_asistio', 'atrasada', 'pendiente'];
+  const validos = ['pendiente','confirmada','en_proceso','realizada','atrasada','no_asistio','cancelada','reagendada'];
   if (!validos.includes(estado)) {
     return res.status(400).json({ error: `Estado inválido. Usa: ${validos.join(', ')}` });
   }
