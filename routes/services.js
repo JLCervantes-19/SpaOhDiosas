@@ -3,18 +3,42 @@ import getSupabaseClient from '../config/supabase.js';
 
 const router = express.Router();
 
+router.get('/categories', async (req, res) => {
+  const supabase = getSupabaseClient();
+  try {
+    const { data, error } = await supabase
+      .from('categorias')
+      .select('id, nombre, color, orden')
+      .eq('activo', true)
+      .order('orden');
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
+    res.json(data);
+  } catch {
+    res.status(500).json({ error: 'Error cargando categorías' });
+  }
+});
+
 router.get('/', async (req, res) => {
   const supabase = getSupabaseClient();
   try {
     const { data, error } = await supabase
       .from('servicios')
-      .select('*')
+      .select('*, categorias(id, nombre, color)')
       .eq('activo', true)
       .order('nombre');
 
     if (error) return res.status(500).json({ error: error.message });
+
+    const normalized = (data || []).map(s => ({
+      ...s,
+      categoria_nombre: s.categorias?.nombre ?? s.categoria ?? null,
+      categoria_color:  s.categorias?.color  ?? null,
+    }));
+
     res.set('Cache-Control', 'public, max-age=300, s-maxage=600');
-    res.json(data);
+    res.json(normalized);
   } catch {
     res.status(500).json({ error: 'Error cargando servicios' });
   }

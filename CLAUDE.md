@@ -81,7 +81,7 @@ curl -s -o /dev/null -w "%{http_code}" "https://n8n-spa-6y2d.onrender.com/health
 
 | ID Workflow | Nombre | Webhook |
 |-------------|--------|---------|
-| `58vtbwK4zbdspKMQ` | Bot SPA Web - Advanced Memory & DB Routing v2 | POST /webhook/chatweb |
+| `7EJ2eX8ztvX5D0j1` | Bot SPA Web - Advanced Memory & DB Routing v2 | POST /webhook/chatweb |
 
 **Reglas para editar workflows:**
 - Usar siempre `curl` (no Python urllib — falla por SSL en este Mac).
@@ -90,12 +90,12 @@ curl -s -o /dev/null -w "%{http_code}" "https://n8n-spa-6y2d.onrender.com/health
 
 ```bash
 # Obtener workflow
-curl -H "X-N8N-API-KEY: $N8N_API_KEY" https://n8n-spa-6y2d.onrender.com/api/v1/workflows/58vtbwK4zbdspKMQ
+curl -H "X-N8N-API-KEY: $N8N_API_KEY" https://n8n-spa-6y2d.onrender.com/api/v1/workflows/7EJ2eX8ztvX5D0j1
 
 # Actualizar workflow
 curl -X PUT -H "X-N8N-API-KEY: $N8N_API_KEY" -H "Content-Type: application/json" \
   -d '{"name":"...","nodes":[...],"connections":{...},"settings":{"executionOrder":"v1"}}' \
-  https://n8n-spa-6y2d.onrender.com/api/v1/workflows/58vtbwK4zbdspKMQ
+  https://n8n-spa-6y2d.onrender.com/api/v1/workflows/7EJ2eX8ztvX5D0j1
 ```
 
 ## Instrucciones

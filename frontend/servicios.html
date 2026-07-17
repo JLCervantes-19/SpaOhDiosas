@@ -4,8 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Servicios — Serenità Spa</title>
-  <!-- PWA ═══════════════════════════════════════════════════
-       CLIENTE: cambiar theme-color y apple-mobile-web-app-title -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#2C4A2E" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -13,72 +11,263 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="SPA" />
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-  <!-- ════════════════════════════════════════════════════ -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Jost:wght@300;400;500&family=Cinzel:wght@400;600&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config={theme:{extend:{colors:{gold:{DEFAULT:'#C9A961',light:'#DFC98A',dark:'#A88740'},forest:{DEFAULT:'#2C4A2E'},cream:{DEFAULT:'#FAF8F5',dark:'#F0EDE6'},charcoal:{DEFAULT:'#1C1C1E'}},fontFamily:{display:['Cormorant Garamond','serif'],body:['Jost','sans-serif'],accent:['Cinzel','serif']}}}}</script>
   <link rel="stylesheet" href="css/spa.css" />
+
+  <style>
+    /* ── Zona de filtros ──────────────────────────────── */
+    .filtros-zona {
+      background: var(--cream);
+      padding: 56px 24px 0;
+      position: relative;
+    }
+    .filtros-header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .filtros-header .label-accent {
+      font-family: var(--font-accent);
+      font-size: 0.58rem;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--lilac);
+      display: block;
+      margin-bottom: 10px;
+    }
+    .filtros-header .divider-gold { margin: 0 auto; }
+
+    /* ── Burbujas ─────────────────────────────────────── */
+    #categorias-filter {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      max-width: 860px;
+      margin: 0 auto 16px;
+    }
+    .cat-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 22px;
+      border-radius: 999px;
+      border: 1.5px solid;
+      background: transparent;
+      font-family: var(--font-body);
+      font-size: 0.73rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: background 0.28s ease, color 0.28s ease,
+                  transform 0.22s ease, box-shadow 0.28s ease;
+      white-space: nowrap;
+    }
+    .cat-pill .pill-count {
+      font-style: normal;
+      font-size: 0.65rem;
+      border-radius: 999px;
+      padding: 1px 7px;
+      background: rgba(0,0,0,0.08);
+      transition: background 0.28s ease;
+    }
+    /* "Todos" — usa paleta del spa */
+    .cat-pill[data-cat="todos"] {
+      border-color: var(--forest);
+      color: var(--forest);
+    }
+    .cat-pill[data-cat="todos"]:hover {
+      background: rgba(44, 74, 46, 0.07);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(44, 74, 46, 0.14);
+    }
+    .cat-pill[data-cat="todos"].active {
+      background: var(--forest);
+      color: #FAF8F5;
+      box-shadow: 0 4px 20px rgba(44, 74, 46, 0.28);
+      transform: translateY(-2px);
+    }
+    .cat-pill[data-cat="todos"].active .pill-count {
+      background: rgba(250,248,245,0.22);
+    }
+    /* Categorías con color propio */
+    .cat-pill[data-cat]:not([data-cat="todos"]):hover {
+      transform: translateY(-2px);
+    }
+    .cat-pill.active .pill-count {
+      background: rgba(255,255,255,0.25);
+    }
+
+    /* ── Contador ─────────────────────────────────────── */
+    #servicios-counter {
+      text-align: center;
+      font-family: var(--font-display);
+      font-style: italic;
+      font-size: 0.95rem;
+      font-weight: 300;
+      color: rgba(44,74,46,0.38);
+      letter-spacing: 0.02em;
+      padding: 6px 0 36px;
+      transition: opacity 0.3s;
+    }
+
+    /* ── Separador decorativo entre filtros y grid ─────── */
+    .filtros-divider {
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(201,169,97,0.25) 30%, rgba(201,169,97,0.45) 50%, rgba(201,169,97,0.25) 70%, transparent);
+      margin-bottom: 64px;
+      max-width: 860px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* ── Badge categoría en tarjeta ───────────────────── */
+    .cat-badge-card {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.62rem;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      font-family: var(--font-accent);
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-bottom: 6px;
+    }
+
+    /* ── Animación tarjetas al filtrar ────────────────── */
+    article[data-id] {
+      transition: opacity 0.32s ease, transform 0.32s ease;
+    }
+    article[data-id].oculto {
+      opacity: 0;
+      transform: scale(0.96);
+      pointer-events: none;
+    }
+
+    /* ── Mobile ───────────────────────────────────────── */
+    @media (max-width: 640px) {
+      #categorias-filter { gap: 8px; }
+      .cat-pill { padding: 8px 16px; font-size: 0.7rem; }
+    }
+  </style>
 </head>
 <body>
+
+<!-- NAV -->
 <nav id="navbar">
   <div class="max-w-7xl mx-auto px-6 w-full flex items-center justify-between">
-    <a href="index.html" class="flex flex-col leading-none"><span class="font-accent text-base tracking-[0.3em] uppercase text-forest">Serenità Spa</span><span class="font-body text-[9px] tracking-[0.45em] uppercase text-gold font-light">Luxury Wellness</span></a>
+    <a href="index.html" class="flex flex-col leading-none">
+      <span class="font-accent text-base tracking-[0.3em] uppercase text-forest">Serenità Spa</span>
+      <span class="font-body text-[9px] tracking-[0.45em] uppercase text-gold font-light">Luxury Wellness</span>
+    </a>
     <div class="hidden md:flex items-center gap-8">
-      <a href="index.html" class="font-body text-xs tracking-widest uppercase text-forest/70 hover:text-gold transition-colors">Inicio</a>
-      <a href="reservas.html" class="font-body text-xs tracking-widest uppercase text-forest/70 hover:text-gold transition-colors">Reservar</a>
+      <a href="index.html"        class="font-body text-xs tracking-widest uppercase text-forest/70 hover:text-gold transition-colors">Inicio</a>
+      <a href="reservas.html"     class="font-body text-xs tracking-widest uppercase text-forest/70 hover:text-gold transition-colors">Reservar</a>
       <a href="index.html#contacto" class="font-body text-xs tracking-widest uppercase text-forest/70 hover:text-gold transition-colors">Contacto</a>
     </div>
     <a href="reservas.html" class="hidden md:block btn-gold" style="font-size:0.65rem;padding:10px 24px">Reservar</a>
-    <button id="menu-toggle" class="md:hidden p-2 text-forest"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+    <button id="menu-toggle" class="md:hidden p-2 text-forest">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
   </div>
 </nav>
+
+<!-- MENU MOBILE -->
 <div id="mobile-menu">
-  <button id="menu-close" style="position:absolute;top:24px;right:24px;color:var(--cream);background:none;border:none;cursor:pointer"><svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-  <a href="index.html" class="font-display text-4xl font-light text-cream hover:text-gold transition-colors">Inicio</a>
+  <button id="menu-close" style="position:absolute;top:24px;right:24px;color:var(--cream);background:none;border:none;cursor:pointer">
+    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <a href="index.html"    class="font-display text-4xl font-light text-cream hover:text-gold transition-colors">Inicio</a>
   <a href="reservas.html" class="font-display text-4xl font-light text-cream hover:text-gold transition-colors">Reservar</a>
 </div>
 
-<div style="padding-top:108px;padding-bottom:48px;padding-left:24px;padding-right:24px;background:var(--forest);position:relative;overflow:hidden">
+<!-- HERO -->
+<div style="padding-top:108px;padding-bottom:56px;padding-left:24px;padding-right:24px;background:var(--forest);position:relative;overflow:hidden">
   <div style="position:absolute;inset:0;background:radial-gradient(ellipse 60% 70% at 50% 100%,rgba(201,169,97,0.08) 0%,transparent 70%)"></div>
   <div style="max-width:700px;margin:0 auto;text-align:center;position:relative">
     <p class="heading-accent" style="color:var(--gold);margin-bottom:12px">Nuestros Rituales</p>
-    <h1 class="heading-display" style="font-size:clamp(2.5rem,6vw,4rem);color:var(--cream);margin-bottom:12px">Cada servicio,<br><em style="color:var(--gold);font-style:normal">una obra de arte</em></h1>
+    <h1 class="heading-display" style="font-size:clamp(2.5rem,6vw,4rem);color:var(--cream);margin-bottom:12px">
+      Cada servicio,<br><em style="color:var(--gold);font-style:normal">una obra de arte</em>
+    </h1>
     <div class="divider-gold"></div>
-    <p style="font-family:var(--font-body);font-weight:300;color:rgba(250,248,245,0.45);max-width:440px;margin:0 auto;line-height:1.7">Descubre nuestra colección completa de tratamientos diseñados para renovar cuerpo y mente.</p>
+    <p style="font-family:var(--font-body);font-weight:300;color:rgba(250,248,245,0.45);max-width:440px;margin:0 auto;line-height:1.7">
+      Descubre nuestra colección completa de tratamientos diseñados para renovar cuerpo y mente.
+    </p>
   </div>
 </div>
 
-<section class="section-padding" style="background:var(--cream)">
-  <div class="max-w-7xl mx-auto">
+<!-- FILTROS + GRID -->
+<section style="background:var(--cream)">
+
+  <!-- Encabezado filtros -->
+  <div class="filtros-zona">
+    <div class="filtros-header">
+      <span class="label-accent">Explorar por categoría</span>
+      <div class="divider-gold"></div>
+    </div>
+
+    <!-- Burbujas generadas por JS -->
+    <div id="categorias-filter"></div>
+
+    <!-- Contador elegante -->
+    <p id="servicios-counter"></p>
+  </div>
+
+  <!-- Separador dorado -->
+  <div style="padding:0 24px">
+    <div class="filtros-divider"></div>
+  </div>
+
+  <!-- Grid de servicios -->
+  <div class="max-w-7xl mx-auto" style="padding:0 24px 96px">
     <div id="servicios-grid-full" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-      <div class="skeleton" style="height:440px"></div><div class="skeleton" style="height:440px"></div><div class="skeleton" style="height:440px"></div>
+      <div class="skeleton" style="height:440px"></div>
+      <div class="skeleton" style="height:440px"></div>
+      <div class="skeleton" style="height:440px"></div>
     </div>
   </div>
+
 </section>
 
-<div style="padding:64px 24px;background:var(--cream-dark);text-align:center">
-  <p class="heading-accent" style="margin-bottom:16px">¿Lista para empezar?</p>
-  <h2 class="heading-display" style="font-size:clamp(1.8rem,4vw,2.5rem);color:var(--forest);margin-bottom:24px">Reserva tu ritual hoy</h2>
-  <a href="reservas.html" class="btn-gold">Agendar ahora</a>
+<!-- CTA RESERVA -->
+<div style="padding:72px 24px;background:var(--cream-dark);text-align:center;position:relative;overflow:hidden">
+  <div style="position:absolute;inset:0;background:radial-gradient(ellipse 50% 60% at 50% 50%,rgba(201,169,97,0.06) 0%,transparent 70%)"></div>
+  <div style="position:relative">
+    <p class="heading-accent" style="margin-bottom:16px">¿Lista para empezar?</p>
+    <h2 class="heading-display" style="font-size:clamp(1.8rem,4vw,2.5rem);color:var(--forest);margin-bottom:8px">Reserva tu ritual hoy</h2>
+    <p style="font-family:var(--font-body);font-weight:300;color:rgba(44,74,46,0.5);margin-bottom:28px;font-size:0.88rem">El momento de cuidarte empieza con un clic.</p>
+    <a href="reservas.html" class="btn-gold" style="font-size:0.7rem;padding:13px 32px">Agendar ahora</a>
+  </div>
 </div>
+
+<!-- FOOTER -->
 <footer style="background:var(--charcoal);border-top:1px solid rgba(255,255,255,0.04);padding:24px">
-  <p style="text-align:center;font-family:var(--font-body);font-size:0.75rem;color:rgba(255,255,255,0.15)">© 2026 Serenità Spa.</p>
+  <p style="text-align:center;font-family:var(--font-body);font-size:0.75rem;color:rgba(255,255,255,0.15)">© 2026 Serenità Spa. Todos los derechos reservados.</p>
 </footer>
+
 <div id="wa-menu"></div>
-<button id="wa-btn"><span class="pulse"></span><svg class="wa-icon" viewBox="0 0 24 24" fill="white" width="24" height="24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.117 1.526 5.847L.057 23.5l5.816-1.524A11.934 11.934 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0z"/></svg><svg class="wa-close hidden" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+<button id="wa-btn">
+  <span class="pulse"></span>
+  <svg class="wa-icon" viewBox="0 0 24 24" fill="white" width="24" height="24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.117 1.526 5.847L.057 23.5l5.816-1.524A11.934 11.934 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0z"/></svg>
+  <svg class="wa-close hidden" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+</button>
+
 <script type="module">
   import { loadServiciosFull } from './js/services.js'
   import './js/animations.js'; import './js/main.js'
   document.addEventListener('DOMContentLoaded', loadServiciosFull)
 </script>
-  <!-- PWA: Service Worker -->
-  <script>
-    if ('serviceWorker' in navigator && location.hostname !== 'localhost') {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => {});
-      });
-    }
-  </script>
+<script>
+  if ('serviceWorker' in navigator && location.hostname !== 'localhost') {
+    window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}) })
+  }
+</script>
 </body>
 </html>

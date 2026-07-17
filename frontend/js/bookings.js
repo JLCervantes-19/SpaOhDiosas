@@ -12,6 +12,7 @@ const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov'
 const state = {
   step:          1,
   servicioId:    null,
+  categoriaId:   null,
   fecha:         null,
   hora:          null,
   nombre:        '',
@@ -19,8 +20,14 @@ const state = {
   email:         '',
   notas:         '',
   servicios:     [],
+  categorias:    [],
   horarioSemana: null,
+  anticipMaxDias: 240,
+  calendarPage:  0,
 }
+
+// Rango máximo navegable del calendario: 8 meses (~240 días)
+const MAX_DIAS_CALENDARIO = 240
 
 // ——— NAVEGACIÓN DE PASOS ——————————————————————————————————
 function goToStep(n) {
@@ -48,16 +55,60 @@ function updateStepIndicators() {
   })
 }
 
-// ——— PASO 1: SELECCIÓN DE SERVICIO ——————————————————————
-function renderStep1() {
+// ——— PASO 1: CATEGORÍAS + SELECCIÓN DE SERVICIO ————————————
+function renderCategorias() {
   const container = document.getElementById('step1-servicios')
   if (!container) return
-  if (!state.servicios.length) {
+
+  const usadas = new Set(state.servicios.map(s => s.categoria_id).filter(Boolean))
+  const categorias = state.categorias.filter(c => usadas.has(c.id))
+
+  // Sin categorías configuradas → mostrar servicios directamente
+  if (!categorias.length) { renderServicios(); return }
+
+  container.innerHTML = `
+    <p style="font-family:var(--font-body);font-size:0.8rem;color:rgba(28,28,30,0.45);margin-bottom:4px">Primero elige una categoría</p>
+    ${categorias.map(c => {
+      const count = state.servicios.filter(s => s.categoria_id === c.id).length
+      return `
+        <button class="service-select-btn" data-cat="${c.id}" style="align-items:center">
+          <div style="flex:1">
+            <h4 class="font-display" style="font-size:1.05rem;color:var(--forest);font-weight:400">${c.nombre}</h4>
+            <p style="font-size:0.75rem;color:rgba(28,28,30,0.45);margin-top:4px">${count} servicio${count !== 1 ? 's' : ''}</p>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${c.color || 'var(--gold)'}" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      `
+    }).join('')}
+  `
+
+  container.querySelectorAll('[data-cat]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.categoriaId = btn.dataset.cat
+      renderServicios()
+    })
+  })
+}
+
+function renderServicios() {
+  const container = document.getElementById('step1-servicios')
+  if (!container) return
+  const lista = state.categoriaId
+    ? state.servicios.filter(s => s.categoria_id === state.categoriaId)
+    : state.servicios
+
+  if (!lista.length) {
     container.innerHTML = `<p style="font-family:var(--font-body);font-size:0.88rem;color:rgba(28,28,30,0.5);padding:16px 0">No hay servicios disponibles en este momento.</p>`
     return
   }
 
-  container.innerHTML = state.servicios.map(s => `
+  const cat = state.categorias.find(c => c.id === state.categoriaId)
+  const backBtn = state.categoriaId ? `
+    <button id="btn-back-categorias" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;font-family:var(--font-body);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:rgba(28,28,30,0.5);padding:4px 0;margin-bottom:4px">
+      ← Categorías${cat ? ` / <span style="color:var(--gold)">${cat.nombre}</span>` : ''}
+    </button>` : ''
+
+  container.innerHTML = backBtn + lista.map(s => `
     <button class="service-select-btn" data-id="${s.id}">
       <div style="flex:1">
         <h4 class="font-display" style="font-size:1rem;color:var(--forest);font-weight:400;margin-bottom:4px">${s.nombre}</h4>
@@ -74,7 +125,13 @@ function renderStep1() {
     </button>
   `).join('')
 
-  container.querySelectorAll('.service-select-btn').forEach(btn => {
+  document.getElementById('btn-back-categorias')?.addEventListener('click', () => {
+    state.categoriaId = null
+    state.servicioId = null
+    renderCategorias()
+  })
+
+  container.querySelectorAll('.service-select-btn[data-id]').forEach(btn => {
     if (state.servicioId && btn.dataset.id === state.servicioId) {
       btn.classList.add('is-selected')
     }
@@ -87,13 +144,18 @@ function renderStep1() {
 }
 
 // ——— PASO 2: FECHA & HORA ————————————————————————————————
+const DATES_PER_PAGE = 15
+
 function getAvailableDates() {
   const dates = []
   const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
   const hoy = new Date(now)
   hoy.setHours(0, 0, 0, 0)
 
-  for (let i = 0; dates.length < 30; i++) {
+  // Rango navegable: lo configurado en el dashboard, con tope de 8 meses
+  const maxDias = Math.min(state.anticipMaxDias || MAX_DIAS_CALENDARIO, MAX_DIAS_CALENDARIO)
+
+  for (let i = 0; dates.length < maxDias; i++) {
     const d = new Date(hoy)
     d.setDate(hoy.getDate() + i)
     dates.push(d)
@@ -107,11 +169,21 @@ function formatDateKey(d) {
 
 const DIA_KEYS_SEMANA = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado']
 
+const NAV_BTN_BASE = `
+  font-family:var(--font-body);font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;
+  padding:8px 14px;border:1px solid rgba(201,169,97,0.3);background:transparent;
+  color:rgba(28,28,30,0.5);cursor:pointer;transition:all 0.25s;border-radius:4px;
+`
+
 function renderDates() {
   const container = document.getElementById('fechas-grid')
   if (!container) return
 
-  const dates = getAvailableDates()
+  const allDates   = getAvailableDates()
+  const totalPages = Math.ceil(allDates.length / DATES_PER_PAGE)
+  const start      = state.calendarPage * DATES_PER_PAGE
+  const dates      = allDates.slice(start, start + DATES_PER_PAGE)
+
   container.innerHTML = dates.map(d => {
     const key      = formatDateKey(d)
     const selected = state.fecha === key
@@ -126,7 +198,7 @@ function renderDates() {
         ">
         <div style="font-family:var(--font-body);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;opacity:0.6;margin-bottom:2px">${DIAS[d.getDay()]}</div>
         <div class="font-display" style="font-size:1.4rem;${selected ? 'color:var(--gold)' : 'color:var(--forest)'}">${d.getDate()}</div>
-        <div style="font-family:var(--font-body);font-size:0.6rem;text-transform:uppercase;opacity:0.5">${MESES[d.getMonth()]}</div>
+        <div style="font-family:var(--font-body);font-size:0.6rem;text-transform:uppercase;opacity:0.5">${!diaActivo ? 'Cerrado' : MESES[d.getMonth()]}</div>
       </button>
     `
   }).join('')
@@ -139,6 +211,45 @@ function renderDates() {
       await loadSlots()
     })
   })
+
+  // Navegación del calendario
+  let navEl = document.getElementById('fechas-nav')
+  if (!navEl) {
+    navEl = document.createElement('div')
+    navEl.id = 'fechas-nav'
+    container.parentNode.insertBefore(navEl, container.nextSibling)
+  }
+
+  const hasPrev = state.calendarPage > 0
+  const hasNext = state.calendarPage < totalPages - 1
+  const primera = dates[0]
+  const ultima  = dates[dates.length - 1]
+  const pageLabel = `${primera.getDate()} ${MESES[primera.getMonth()]} — ${ultima.getDate()} ${MESES[ultima.getMonth()]}`
+
+  navEl.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;margin-bottom:4px">
+      <button id="cal-prev" style="${NAV_BTN_BASE}${!hasPrev ? 'visibility:hidden' : ''}"
+        onmouseover="this.style.borderColor='rgba(201,169,97,0.7)';this.style.color='var(--forest)'"
+        onmouseout="this.style.borderColor='rgba(201,169,97,0.3)';this.style.color='rgba(28,28,30,0.5)'">
+        ← Anteriores
+      </button>
+      <span style="font-family:var(--font-body);font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:rgba(28,28,30,0.35)">${pageLabel}</span>
+      <button id="cal-next" style="${NAV_BTN_BASE}${!hasNext ? 'visibility:hidden' : ''}"
+        onmouseover="this.style.borderColor='rgba(201,169,97,0.7)';this.style.color='var(--forest)'"
+        onmouseout="this.style.borderColor='rgba(201,169,97,0.3)';this.style.color='rgba(28,28,30,0.5)'">
+        Siguientes →
+      </button>
+    </div>
+  `
+
+  navEl.querySelector('#cal-prev')?.addEventListener('click', () => {
+    state.calendarPage--
+    renderDates()
+  })
+  navEl.querySelector('#cal-next')?.addEventListener('click', () => {
+    state.calendarPage++
+    renderDates()
+  })
 }
 
 async function loadSlots() {
@@ -150,34 +261,38 @@ async function loadSlots() {
   grid.innerHTML = Array(8).fill(0).map(() => `<div class="skeleton" style="height:40px"></div>`).join('')
 
   const { data, error } = await fetchAPI(`/slots?servicio=${state.servicioId}&fecha=${state.fecha}`)
-  if (error || !data?.length) {
+  if (error || !data) {
     grid.innerHTML = `<p style="font-family:var(--font-body);font-size:0.85rem;color:rgba(28,28,30,0.4);grid-column:1/-1;padding:16px 0">Error cargando horarios. Recarga la página.</p>`
     return
   }
 
-  // Filtrar slots dentro de las próximas 2 horas
-  const nowCol = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
-  const fechaSeleccionada = state.fecha
-  const esHoy = fechaSeleccionada === `${nowCol.getFullYear()}-${String(nowCol.getMonth()+1).padStart(2,'0')}-${String(nowCol.getDate()).padStart(2,'0')}`
-  const filteredData = data.filter(slot => {
-    if (!esHoy) return true
-    const [h, m] = slot.hora.split(':').map(Number)
-    const slotMin = h * 60 + m
-    const nowMin = nowCol.getHours() * 60 + nowCol.getMinutes() + 120 // +2 horas
-    return slotMin >= nowMin
-  })
+  // Compatibilidad: API nueva {cerrado, slots} — API vieja [slots]
+  const slots = Array.isArray(data) ? data : (data.slots || [])
+  const cerrado = !Array.isArray(data) && data.cerrado
 
-  if (!filteredData.length) {
+  if (cerrado) {
+    grid.innerHTML = `<p style="font-family:var(--font-body);font-size:0.85rem;color:rgba(28,28,30,0.4);grid-column:1/-1;padding:16px 0">El spa está cerrado este día. Elige otra fecha.</p>`
+    return
+  }
+  if (!slots.length) {
     grid.innerHTML = `<p style="font-family:var(--font-body);font-size:0.85rem;color:rgba(28,28,30,0.4);grid-column:1/-1;padding:16px 0">No hay horarios disponibles para este día.</p>`
     return
   }
 
-  grid.innerHTML = filteredData.map(slot => `
+  // Los horarios ocupados o dentro de la ventana de anticipación mínima
+  // se muestran en gris (no se ocultan) para ver la estructura completa del día.
+  grid.innerHTML = slots.map(slot => `
     <button class="slot-btn ${state.hora === slot.hora ? 'selected' : ''}"
-      data-hora="${slot.hora}" ${!slot.disponible ? 'disabled' : ''}>
+      data-hora="${slot.hora}" ${!slot.disponible ? 'disabled' : ''}
+      style="${!slot.disponible ? 'opacity:0.35;cursor:not-allowed;text-decoration:line-through;background:rgba(28,28,30,0.04)' : ''}">
       ${slot.hora}
     </button>
   `).join('')
+
+  if (!slots.some(s => s.disponible)) {
+    grid.insertAdjacentHTML('beforeend',
+      `<p style="font-family:var(--font-body);font-size:0.78rem;color:rgba(28,28,30,0.4);grid-column:1/-1;padding:8px 0">Todos los horarios de este día están ocupados o muy próximos. Elige otra fecha.</p>`)
+  }
 
   grid.querySelectorAll('.slot-btn:not(:disabled)').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -375,14 +490,19 @@ export async function initBooking() {
   const section = document.getElementById('booking-section')
   if (!section) return
 
-  // Cargar servicios
-  const { data } = await fetchAPI('/services')
+  // Cargar servicios y categorías
+  const [{ data }, { data: cats }] = await Promise.all([
+    fetchAPI('/services'),
+    fetchAPI('/services/categories'),
+  ])
   state.servicios = data ?? []
+  state.categorias = cats ?? []
 
-  // Cargar horario del spa para validar días disponibles
+  // Cargar configuración del spa: horario semanal y ventana de reservas
   try {
     const { data: cfg } = await fetchAPI('/config')
     state.horarioSemana = cfg?.horario_semana || null
+    if (cfg?.reserva_anticip_max_dias) state.anticipMaxDias = cfg.reserva_anticip_max_dias
   } catch (_) {
     state.horarioSemana = null
   }
@@ -392,10 +512,12 @@ export async function initBooking() {
   const preselect = params.get('servicio')
   if (preselect && state.servicios.find(s => s.id === preselect)) {
     state.servicioId = preselect
+    state.categoriaId = state.servicios.find(s => s.id === preselect)?.categoria_id || null
   }
 
   // Render inicial
-  renderStep1()
+  if (state.servicioId) renderServicios()
+  else renderCategorias()
   renderDates()
   goToStep(state.servicioId ? 2 : 1)
 

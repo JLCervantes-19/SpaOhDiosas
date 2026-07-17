@@ -167,7 +167,6 @@ class ChatButton {
 // EXPORTS
 // ============================================================
 
-export { ChatButton }
 
 // ============================================================
 // CHAT PANEL COMPONENT
@@ -517,10 +516,20 @@ function createAppointmentCard(appointment) {
   card.className = 'appointment-card'
 
   const estadoColors = {
-    'confirmada': '#4ade80',
-    'pendiente': '#fbbf24',
-    'cancelada': '#ef4444',
-    'completada': '#8b5cf6'
+    'confirmada':        '#4ade80',
+    'pendiente':         '#fbbf24',
+    'completada':        '#8b5cf6',
+    'no_asistio':        '#ef4444',
+    'cancelada_cliente': '#f97316',
+    'cancelada_admin':   '#6b7280',
+  }
+  const estadoLabels = {
+    'confirmada':        'Confirmada',
+    'pendiente':         'Pendiente',
+    'completada':        'Completada',
+    'no_asistio':        'No asistió',
+    'cancelada_cliente': 'Cancelada',
+    'cancelada_admin':   'Cancelada',
   }
   const estadoColor = estadoColors[appointment.estado] || '#6b7280'
 
@@ -530,7 +539,7 @@ function createAppointmentCard(appointment) {
   const badge = document.createElement('span')
   badge.className = 'appointment-badge'
   badge.style.backgroundColor = estadoColor
-  badge.textContent = appointment.estado
+  badge.textContent = estadoLabels[appointment.estado] || appointment.estado
 
   const dateSpan = document.createElement('span')
   dateSpan.className = 'appointment-date'

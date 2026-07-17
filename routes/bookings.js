@@ -39,17 +39,37 @@ async function getHorarioSpa() {
   try {
     const { data } = await supabase
       .from('configuracion')
-      .select('horario_semana, slot_duracion_min')
+      .select('horario_semana, slot_duracion_min, reserva_anticip_min_horas, reserva_anticip_max_dias, buffer_min')
       .limit(1)
       .single();
     return {
       horario: data?.horario_semana || HORARIO_FALLBACK,
       slotMin: data?.slot_duracion_min || 30,
+      anticipMinHoras: data?.reserva_anticip_min_horas ?? 2,
+      anticipMaxDias: data?.reserva_anticip_max_dias ?? 60,
+      bufferDefault: data?.buffer_min ?? 10,
     };
   } catch {
-    return { horario: HORARIO_FALLBACK, slotMin: 30 };
+    return { horario: HORARIO_FALLBACK, slotMin: 30, anticipMinHoras: 2, anticipMaxDias: 60, bufferDefault: 10 };
   }
 }
+
+// Fecha y hora actuales en la zona horaria del spa (Bogotá)
+function ahoraBogota() {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }));
+  const fecha = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  return { fecha, minutos: now.getHours() * 60 + now.getMinutes() };
+}
+
+// ¿El slot cumple la anticipación mínima (horas) respecto al momento actual?
+function cumpleAnticipacion(fecha, horaSlot, anticipMinHoras) {
+  const ahora = ahoraBogota();
+  if (fecha > ahora.fecha) return true;
+  if (fecha < ahora.fecha) return false;
+  return timeToMin(horaSlot) >= ahora.minutos + anticipMinHoras * 60;
+}
+
+const ESTADOS_OCUPAN_SLOT = '(cancelada_cliente,cancelada_admin,no_asistio)';
 
 async function getCandidatas(servicioId) {
   const supabase = getSupabaseClient();
@@ -69,8 +89,7 @@ async function getCitasPorEmpleada(fecha, empleadaIds) {
     .from('citas')
     .select('empleado_id, hora_inicio, hora_fin')
     .eq('fecha', fecha)
-    .neq('estado', 'cancelada')
-    .neq('estado', 'no_asistio')
+    .not('estado', 'in', ESTADOS_OCUPAN_SLOT)
     .in('empleado_id', empleadaIds);
 
   const mapa = {};
@@ -131,8 +150,8 @@ async function sugerirHorarios(servicioId, fechaBase, max = 3) {
   const candidatas = await getCandidatas(servicioId);
   if (!candidatas.length) return [];
 
-  const { horario, slotMin } = await getHorarioSpa();
-  const totalMin = svc.duracion_min + (svc.buffer_min ?? 10);
+  const { horario, bufferDefault } = await getHorarioSpa();
+  const totalMin = svc.duracion_min + (svc.buffer_min ?? bufferDefault);
   const empleadaIds = candidatas.map(e => e.id);
   const sugerencias = [];
   const base = new Date(fechaBase + 'T12:00:00');
@@ -166,7 +185,7 @@ async function sugerirHorarios(servicioId, fechaBase, max = 3) {
           label: `${fechaLegible(fecha)} a las ${horaLegible(slotStart)}`,
         });
       }
-      cursor += slotMin;
+      cursor += totalMin;
     }
   }
   return sugerencias;
@@ -187,15 +206,21 @@ router.get('/', async (req, res) => {
     .single();
   if (!svc) return res.status(404).json({ error: 'Servicio no encontrado' });
 
-  const totalMin = svc.duracion_min + (svc.buffer_min ?? 10);
-  const { horario, slotMin } = await getHorarioSpa();
+  const config = await getHorarioSpa();
+  const totalMin = svc.duracion_min + (svc.buffer_min ?? config.bufferDefault);
   const date = new Date(fecha + 'T12:00:00');
   const diaKey = DIA_KEYS[date.getDay()];
-  const diaConf = horario[diaKey];
-  if (!diaConf?.activo) return res.json([]);
+  const diaConf = config.horario[diaKey];
+  if (!diaConf?.activo) {
+    res.set('Cache-Control', 'no-store');
+    return res.json({ cerrado: true, slots: [] });
+  }
 
   const candidatas = await getCandidatas(servicio);
-  if (!candidatas.length) return res.json([]);
+  if (!candidatas.length) {
+    res.set('Cache-Control', 'no-store');
+    return res.json({ cerrado: false, slots: [] });
+  }
 
   const empleadaIds = candidatas.map(e => e.id);
   const [citas, bloqueos] = await Promise.all([
@@ -210,15 +235,16 @@ router.get('/', async (req, res) => {
   while (cursor + totalMin <= finDia) {
     const slotStart = minToTime(cursor);
     const slotEnd = minToTime(cursor + totalMin);
-    const disponible = candidatas.some(e =>
+    const libres = candidatas.filter(e =>
       empleadaEstaLibre(citas[e.id] || [], bloqueos[e.id] || [], slotStart, slotEnd)
-    );
-    slots.push({ hora: slotStart, disponible });
-    cursor += slotMin;
+    ).length;
+    const disponible = libres > 0 && cumpleAnticipacion(fecha, slotStart, config.anticipMinHoras);
+    slots.push({ hora: slotStart, disponible, capacidad: libres });
+    cursor += totalMin;
   }
 
   res.set('Cache-Control', 'no-store');
-  res.json(slots);
+  res.json({ cerrado: false, slots });
 });
 
 // POST /api/bookings
@@ -240,7 +266,24 @@ router.post('/', async (req, res) => {
     .single();
   if (!svc) return res.status(404).json({ error: 'Servicio no encontrado o inactivo' });
 
-  const duracion_total = svc.duracion_min + (svc.buffer_min ?? 10);
+  const configSpa = await getHorarioSpa();
+
+  // Regla de anticipación mínima (configurable desde el dashboard, por defecto 2 horas).
+  // Aplica también a reservas del mismo día.
+  if (!cumpleAnticipacion(fecha, hora_inicio, configSpa.anticipMinHoras)) {
+    return res.status(422).json({
+      error: `Las reservas requieren mínimo ${configSpa.anticipMinHoras} horas de anticipación. Por favor elige un horario más tarde u otro día.`,
+      horarios_sugeridos: [],
+    });
+  }
+
+  // El día debe estar abierto según el horario configurado en el dashboard
+  const diaConfReserva = configSpa.horario[DIA_KEYS[new Date(fecha + 'T12:00:00').getDay()]];
+  if (!diaConfReserva?.activo) {
+    return res.status(422).json({ error: 'El spa está cerrado ese día. Por favor elige otra fecha.', horarios_sugeridos: [] });
+  }
+
+  const duracion_total = svc.duracion_min + (svc.buffer_min ?? configSpa.bufferDefault);
   const hora_fin = minToTime(timeToMin(hora_inicio) + duracion_total);
 
   const candidatas = await getCandidatas(servicio_id);
@@ -272,7 +315,10 @@ router.post('/', async (req, res) => {
     });
   }
 
-  // Contar citas realizadas últimos 30 días para distribución justa
+  // ── Balanceo de carga ─────────────────────────────────────
+  // Se asigna a la empleada con MENOS citas de ESTE servicio en los
+  // últimos 30 días (excluyendo canceladas y no asistió).
+  // Si hay empate, se elige al azar entre las empatadas.
   const hace30 = new Date();
   hace30.setDate(hace30.getDate() - 30);
   const fecha30 = hace30.toISOString().split('T')[0];
@@ -282,7 +328,8 @@ router.post('/', async (req, res) => {
     .from('citas')
     .select('empleado_id')
     .in('empleado_id', disponiblesIds)
-    .eq('estado', 'realizada')
+    .eq('servicio_id', servicio_id)
+    .not('estado', 'in', ESTADOS_OCUPAN_SLOT)
     .gte('fecha', fecha30);
 
   const cargaMesMap = {};
@@ -291,34 +338,46 @@ router.post('/', async (req, res) => {
 
   const conCarga = disponibles.map(e => ({
     ...e,
-    citas_mes: cargaMesMap[e.id] || 0,
-    citas_hoy: (citasDia[e.id] || []).length,
+    citas_servicio_mes: cargaMesMap[e.id] || 0,
   }));
-  conCarga.sort((a, b) =>
-    a.citas_mes - b.citas_mes ||
-    a.citas_hoy - b.citas_hoy ||
-    a.nombre.localeCompare(b.nombre)
-  );
-  const asignada = conCarga[0];
+  const minCarga = Math.min(...conCarga.map(e => e.citas_servicio_mes));
+  const empatadas = conCarga.filter(e => e.citas_servicio_mes === minCarga);
+  const asignada = empatadas[Math.floor(Math.random() * empatadas.length)];
 
+  // ── Deduplicación de clientes ─────────────────────────────
+  // Busca coincidencia por teléfono O email antes de crear un registro.
+  // Si teléfono y email apuntan a registros distintos, se usa el más
+  // completo (más campos con datos) y la reserva se vincula a ese perfil.
   const emailNorm = email ? email.toLowerCase().trim() : '';
+  const telNorm = telefono.trim();
   let cliente_id = null;
 
-  const { data: cliEx } = await supabase
-    .from('clientes')
-    .select('id')
-    .eq('telefono', telefono)
-    .single();
+  const filtros = [`telefono.eq.${telNorm}`];
+  if (emailNorm) filtros.push(`email.eq.${emailNorm}`);
 
-  if (cliEx) {
-    cliente_id = cliEx.id;
-    if (emailNorm) {
-      await supabase.from('clientes').update({ email: emailNorm }).eq('id', cliente_id);
+  const { data: coincidencias } = await supabase
+    .from('clientes')
+    .select('id, nombre, telefono, email, fecha_nacimiento, alergias, notas')
+    .or(filtros.join(','));
+
+  if (coincidencias?.length) {
+    const completitud = c =>
+      ['nombre', 'telefono', 'email', 'fecha_nacimiento', 'alergias', 'notas']
+        .filter(k => c[k] != null && String(c[k]).trim() !== '').length;
+    const elegido = [...coincidencias].sort((a, b) => completitud(b) - completitud(a))[0];
+    cliente_id = elegido.id;
+
+    // Completar datos faltantes del perfil existente sin sobrescribir los que ya tiene
+    const patch = {};
+    if (emailNorm && !elegido.email) patch.email = emailNorm;
+    if (telNorm && !elegido.telefono) patch.telefono = telNorm;
+    if (Object.keys(patch).length) {
+      await supabase.from('clientes').update(patch).eq('id', cliente_id);
     }
   } else {
     const { data: nuevoC, error: cErr } = await supabase
       .from('clientes')
-      .insert({ nombre, telefono, email: emailNorm, origen: origen ?? 'web' })
+      .insert({ nombre, telefono: telNorm, email: emailNorm, origen: origen ?? 'web' })
       .select()
       .single();
     if (cErr) return res.status(500).json({ error: 'Error al registrar cliente' });
@@ -330,8 +389,7 @@ router.post('/', async (req, res) => {
     .select('hora_inicio, hora_fin')
     .eq('fecha', fecha)
     .eq('empleado_id', asignada.id)
-    .neq('estado', 'cancelada')
-    .neq('estado', 'no_asistio');
+    .not('estado', 'in', ESTADOS_OCUPAN_SLOT);
 
   const yaOcupado = (citasFinales || []).some(c =>
     cruzan(hora_inicio, hora_fin, c.hora_inicio, c.hora_fin)
@@ -362,7 +420,10 @@ router.post('/', async (req, res) => {
     .select()
     .single();
 
-  if (citaError) return res.status(500).json({ error: 'Error al crear la reserva. Intenta de nuevo.' });
+  if (citaError) {
+    console.error('Error al insertar cita:', citaError);
+    return res.status(500).json({ error: 'Error al crear la reserva. Intenta de nuevo.' });
+  }
 
   res.status(201).json({
     ...cita,
@@ -392,7 +453,7 @@ router.get('/all', requireAdmin, async (req, res) => {
 router.patch('/:id/status', requireAdmin, async (req, res) => {
   const supabase = getSupabaseClient();
   const { estado } = req.body;
-  const validos = ['pendiente','confirmada','en_proceso','realizada','atrasada','no_asistio','cancelada','reagendada'];
+  const validos = ['pendiente','confirmada','completada','no_asistio','cancelada_cliente','cancelada_admin'];
   if (!validos.includes(estado)) {
     return res.status(400).json({ error: `Estado inválido. Usa: ${validos.join(', ')}` });
   }
