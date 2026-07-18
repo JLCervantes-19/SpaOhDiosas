@@ -66,7 +66,12 @@ app.use('/api/services',  servicesRouter);
 app.use('/api/bookings',  bookingLimiter, bookingsRouter);
 app.use('/api/contact',   contactRouter);
 app.use('/api/chat',      chatLimiter, chatRouter);
-app.use('/api/slots',     bookingsRouter);
+// Solo lectura de disponibilidad: el POST de reservas vive en /api/bookings
+// (con su rate limit); sin este guard se podía reservar por /api/slots sin límite
+app.use('/api/slots', (req, res, next) => {
+  if (req.method !== 'GET') return res.status(404).json({ error: 'No encontrado' });
+  next();
+}, bookingsRouter);
 
 function cachePublic(res, seconds = 300) {
   res.set('Cache-Control', `public, max-age=${seconds}, s-maxage=${seconds * 2}`);
@@ -77,6 +82,7 @@ app.get('/api/testimonials', async (req, res) => {
   const { data, error } = await supabase
     .from('testimonios')
     .select('*')
+    .eq('estado', 'publicado')
     .order('created_at', { ascending: false });
   if (error) return res.status(500).json({ error: error.message });
   cachePublic(res);

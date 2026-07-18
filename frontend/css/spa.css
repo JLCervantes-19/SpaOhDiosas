@@ -4,7 +4,11 @@
 
 /* ——— VARIABLES ——————————————————————————————————————————— */
 :root {
-  /* Paleta púrpura/lila delicada */
+  /* ============================================================
+     TOKENS DE DISEÑO — fuente canónica: SISTEMA WEB/design-tokens.css
+     Este bloque debe mantenerse idéntico en spa.css, admin.css y staff.css
+     ============================================================ */
+  /* Paleta púrpura/lila delicada (oficial) */
   --purple-dark:    #522566;
   --purple-medium:  #7A3A8E;
   --lilac:          #AD74C3;
@@ -13,6 +17,33 @@
   --white:          #FFFFFF;
   --text-dark:      #522566;
   --text-medium:    #7A3A8E;
+
+  /* Acentos de marca (dorado/crema) */
+  --gold:        #C9A961;
+  --gold-light:  #DFC98A;
+  --gold-dark:   #A88740;
+  --cream:       #FAF8F5;
+  --cream-dark:  #F0EDE6;
+  --charcoal:    #1C1C1E;
+
+  /* Alias legacy: las páginas antiguas referencian "forest" — hoy
+     resuelven a la paleta púrpura oficial para mantener una sola marca */
+  --forest:      var(--purple-dark);
+  --forest-dark: var(--purple-medium);
+
+  /* Estados de cita (idénticos en las 3 apps) */
+  --estado-pendiente:      #AD74C3;
+  --estado-confirmada:     #2563eb;
+  --estado-completada:     #16a34a;
+  --estado-no-asistio:     #dc2626;
+  --estado-cancelada-c:    #c2410c;
+  --estado-cancelada-a:    #64748b;
+  --estado-pendiente-bg:   #F8EDFB;
+  --estado-confirmada-bg:  #eff6ff;
+  --estado-completada-bg:  #f0fdf4;
+  --estado-no-asistio-bg:  #fef2f2;
+  --estado-cancelada-c-bg: #fff7ed;
+  --estado-cancelada-a-bg: #f1f5f9;
 
   --font-display: 'Cormorant Garamond', Georgia, serif;
   --font-body:    'Jost', system-ui, sans-serif;
@@ -84,6 +115,14 @@ a { text-decoration: none; color: inherit; }
   box-shadow: var(--shadow-soft);
   transform: translateY(-2px);
 }
+.btn-gold:active { transform: translateY(0); }
+.btn-gold:disabled,
+.btn-gold[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
 
 .btn-outline-gold {
   display: inline-flex;
@@ -106,6 +145,12 @@ a { text-decoration: none; color: inherit; }
 .btn-outline-gold:hover {
   background: var(--lilac);
   color: var(--white);
+}
+.btn-outline-gold:active { transform: translateY(0); }
+.btn-outline-gold:disabled,
+.btn-outline-gold[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .btn-forest {

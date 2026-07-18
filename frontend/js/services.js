@@ -29,7 +29,6 @@ function renderServiceCard(s, delay = 0) {
         <div style="display:flex;align-items:center;gap:6px;font-family:var(--font-body);font-size:0.75rem;color:var(--lilac);margin-bottom:16px;font-weight:500">
           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
           ${s.duracion_min} min
-          ${s.buffer_min ? `<span style="color:var(--text-medium);margin-left:4px;opacity:0.7">+ ${s.buffer_min}' preparación</span>` : ''}
         </div>
         <a href="reservas.html?servicio=${s.id}" class="btn-gold" style="font-size:0.65rem;padding:10px 20px;display:inline-flex;gap:6px;align-items:center">
           Reservar
@@ -124,21 +123,22 @@ function filterServicios(catId, allServices) {
   const counter = document.getElementById('servicios-counter')
   if (!grid) return
 
-  const cards = [...grid.querySelectorAll('article[data-id]')]
+  // Filtrado real: solo se renderizan las tarjetas de la categoría activa,
+  // así la grilla se reacomoda sin dejar espacios vacíos
+  const visibles = catId === 'todos'
+    ? allServices
+    : allServices.filter(s => s.categoria_id === catId)
 
-  cards.forEach(card => {
-    const match = catId === 'todos' || card.dataset.categoria === catId
-    if (match) {
-      card.classList.remove('oculto')
-    } else {
-      card.classList.add('oculto')
-    }
+  grid.innerHTML = visibles.map((s, i) => renderServiceCard(s, (i % 3) + 1)).join('')
+
+  grid.querySelectorAll('article[data-id]').forEach((card, i) => {
+    card.classList.remove('reveal')
+    card.classList.add('filtro-enter')
+    card.style.animationDelay = `${Math.min(i * 60, 420)}ms`
   })
 
   if (counter) {
-    const n = catId === 'todos'
-      ? allServices.length
-      : allServices.filter(s => s.categoria_id === catId).length
+    const n = visibles.length
     counter.textContent = `${n} ritual${n !== 1 ? 'es' : ''} disponible${n !== 1 ? 's' : ''}`
   }
 }
@@ -194,7 +194,7 @@ export async function loadServiciosSelect(selectEl) {
   if (!data?.length) return
 
   selectEl.innerHTML = `<option value="">— Elige tu ritual —</option>` +
-    data.map(s => `<option value="${s.id}" data-duracion="${s.duracion_min}" data-buffer="${s.buffer_min}">${s.nombre} · ${formatPrice(s.precio)}</option>`).join('')
+    data.map(s => `<option value="${s.id}" data-duracion="${s.duracion_min}">${s.nombre} · ${formatPrice(s.precio)}</option>`).join('')
 }
 
 // ——— Testimonios dinámicos ———————————————————————————————
@@ -202,25 +202,18 @@ export async function loadTestimonios() {
   const container = document.getElementById('testimonios-grid')
   if (!container) return
 
-  console.log('🔍 Cargando testimonios...')
   const { data, error } = await fetchAPI('/testimonials')
-  
-  console.log('📊 Respuesta testimonios:', { data, error })
-  
+
   if (error) {
-    console.error('❌ Error cargando testimonios:', error)
     container.innerHTML = `<p style="color:rgba(255,255,255,0.6);font-family:var(--font-body);text-align:center;grid-column:1/-1;padding:40px 0">Error cargando testimonios</p>`
     return
   }
-  
+
   if (!data?.length) {
-    console.warn('⚠️ No hay testimonios disponibles')
     container.innerHTML = `<p style="color:rgba(255,255,255,0.6);font-family:var(--font-body);text-align:center;grid-column:1/-1;padding:40px 0">No hay testimonios disponibles.</p>`
     return
   }
 
-  console.log('✅ Testimonios cargados:', data.length)
-  
   container.innerHTML = data.map((t, i) => `
     <div class="testimonial-card reveal delay-${i + 1}" style="padding:32px;position:relative">
       <svg style="position:absolute;top:24px;right:24px;opacity:0.08;width:48px;height:48px;color:var(--lilac)" fill="currentColor" viewBox="0 0 24 24"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.301-3.995 5.847h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.301-3.996 5.847h3.983v10h-9.983z"/></svg>

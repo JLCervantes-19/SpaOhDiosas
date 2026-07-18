@@ -214,7 +214,9 @@ class ChatPanel {
       <div id="chat-panel" class="chat-panel">
         <!-- Header -->
         <div class="chat-header">
-          <div class="chat-avatar">🌿</div>
+          <div class="chat-avatar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.5A4 4 0 0 1 12 22a4 4 0 0 1-2-12.5C8.8 8.8 8 7.5 8 6a4 4 0 0 1 4-4z"/><circle cx="12" cy="12" r="2.5"/></svg>
+          </div>
           <div class="chat-header-info">
             <h3 class="chat-header-title">Serenità Spa</h3>
             <p class="chat-header-status">
@@ -233,7 +235,7 @@ class ChatPanel {
             type="text" 
             id="chat-input" 
             class="chat-input" 
-            placeholder="Escribe tu mensaje..."
+            placeholder="Escribe tu consulta aquí..."
             aria-label="Mensaje de chat"
           />
           <button id="chat-send-btn" class="chat-send-btn" aria-label="Enviar mensaje">
@@ -515,13 +517,14 @@ function createAppointmentCard(appointment) {
   const card = document.createElement('div')
   card.className = 'appointment-card'
 
+  // Sincronizado con los tokens --estado-* (SISTEMA WEB/design-tokens.css)
   const estadoColors = {
-    'confirmada':        '#4ade80',
-    'pendiente':         '#fbbf24',
-    'completada':        '#8b5cf6',
-    'no_asistio':        '#ef4444',
-    'cancelada_cliente': '#f97316',
-    'cancelada_admin':   '#6b7280',
+    'confirmada':        '#2563eb',
+    'pendiente':         '#AD74C3',
+    'completada':        '#16a34a',
+    'no_asistio':        '#dc2626',
+    'cancelada_cliente': '#c2410c',
+    'cancelada_admin':   '#64748b',
   }
   const estadoLabels = {
     'confirmada':        'Confirmada',
@@ -531,7 +534,7 @@ function createAppointmentCard(appointment) {
     'cancelada_cliente': 'Cancelada',
     'cancelada_admin':   'Cancelada',
   }
-  const estadoColor = estadoColors[appointment.estado] || '#6b7280'
+  const estadoColor = estadoColors[appointment.estado] || '#64748b'
 
   const header = document.createElement('div')
   header.className = 'appointment-card-header'
@@ -557,7 +560,7 @@ function createAppointmentCard(appointment) {
 
   const time = document.createElement('p')
   time.className = 'appointment-time'
-  time.textContent = `⏰ ${appointment.hora_inicio} - ${appointment.hora_fin}`
+  time.textContent = `${appointment.hora_inicio} - ${appointment.hora_fin}`
 
   body.appendChild(serviceName)
   body.appendChild(time)
@@ -565,7 +568,7 @@ function createAppointmentCard(appointment) {
   if (appointment.notas) {
     const notes = document.createElement('p')
     notes.className = 'appointment-notes'
-    notes.textContent = `📝 ${appointment.notas}`
+    notes.textContent = appointment.notas
     body.appendChild(notes)
   }
 

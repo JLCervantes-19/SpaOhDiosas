@@ -3,6 +3,15 @@ import getSupabaseClient from '../config/supabase.js';
 
 const router = express.Router();
 
+// Igual que en bookings.js: la creación de servicios es solo para admin
+function requireAdmin(req, res, next) {
+  const adminToken = process.env.ADMIN_TOKEN;
+  if (!adminToken) return res.status(403).json({ error: 'Admin no configurado' });
+  const provided = req.headers['x-admin-token'] || req.query.admin_token;
+  if (provided !== adminToken) return res.status(401).json({ error: 'Token inválido' });
+  next();
+}
+
 router.get('/categories', async (req, res) => {
   const supabase = getSupabaseClient();
   try {
@@ -56,7 +65,7 @@ router.get('/:id', async (req, res) => {
   res.json(data);
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requireAdmin, async (req, res) => {
   const supabase = getSupabaseClient();
   const { nombre, descripcion, precio, duracion_min, buffer_min, imagen, categoria } = req.body;
 
