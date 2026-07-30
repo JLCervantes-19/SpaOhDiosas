@@ -326,7 +326,6 @@ function renderResumen() {
 
 // ——— ENVÍO DEL FORMULARIO —————————————————————————————————
 async function submitReserva() {
-  const btn = document.getElementById('btn-confirmar')
   state.nombre   = document.getElementById('input-nombre')?.value.trim()    ?? ''
   state.telefono = document.getElementById('input-telefono')?.value.trim()  ?? ''
   state.email    = document.getElementById('input-email')?.value.trim()     ?? ''
@@ -345,6 +344,59 @@ async function submitReserva() {
     return
   }
 
+  mostrarResumenReserva()
+}
+
+// ——— MODAL DE RESUMEN (confirmación previa al envío) ————————
+function mostrarResumenReserva() {
+  const servicio = state.servicios.find(s => String(s.id) === String(state.servicioId))
+  const fecha    = new Date(state.fecha + 'T12:00')
+  const fechaStr = fecha.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
+
+  let overlay = document.getElementById('booking-resumen-overlay')
+  if (!overlay) {
+    overlay = document.createElement('div')
+    overlay.id = 'booking-resumen-overlay'
+    overlay.className = 'booking-modal-overlay'
+    document.body.appendChild(overlay)
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open') })
+  }
+
+  overlay.innerHTML = `
+    <div class="booking-modal">
+      <div class="booking-modal-icon">
+        <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </div>
+      <h3 class="booking-modal-title">Revisa tu reserva</h3>
+      <div class="booking-modal-summary">
+        <div><span>Servicio</span><span>${servicio?.nombre ?? '—'}</span></div>
+        <div><span>Fecha</span><span>${fechaStr}</span></div>
+        <div><span>Hora</span><span>${state.hora}</span></div>
+        <div><span>Valor</span><span>${formatPrice(servicio?.precio ?? 0)}</span></div>
+        <div><span>Nombre</span><span>${state.nombre}</span></div>
+      </div>
+      <div class="booking-modal-note">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span>Te recomendamos llegar <strong>5 minutos antes</strong> de tu cita para que puedas disfrutar tu experiencia sin prisas. Si necesitas cancelar o reagendar, contáctanos con anticipación.</span>
+      </div>
+      <div class="booking-modal-actions">
+        <button class="btn-forest" id="btn-resumen-confirmar">Confirmar reserva</button>
+        <button class="btn-outline-gold" id="btn-resumen-editar">Revisar datos</button>
+      </div>
+    </div>
+  `
+
+  document.getElementById('btn-resumen-editar').addEventListener('click', () => overlay.classList.remove('open'))
+  document.getElementById('btn-resumen-confirmar').addEventListener('click', () => {
+    overlay.classList.remove('open')
+    enviarReserva()
+  })
+
+  requestAnimationFrame(() => overlay.classList.add('open'))
+}
+
+async function enviarReserva() {
+  const btn = document.getElementById('btn-confirmar')
   btn.disabled = true
   btn.textContent = 'Confirmando...'
 
