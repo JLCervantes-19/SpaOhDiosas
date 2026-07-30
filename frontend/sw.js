@@ -1,9 +1,9 @@
 // ============================================================
 // sw.js — Service Worker PWA
-// v6: bust caché para óvalo de selección de servicio
+// v7: bust caché para modal de resumen de reserva
 // ============================================================
 
-const CACHE_VERSION = 'v6'
+const CACHE_VERSION = 'v7'
 const CACHE_STATIC  = `spa-static-${CACHE_VERSION}`
 const CACHE_API     = `spa-api-${CACHE_VERSION}`
 const API_TTL_MS    = 5 * 60 * 1000  // 5 minutos para servicios/testimonios
