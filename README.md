@@ -6,6 +6,51 @@ Sitio web de cara al cliente para el spa Oh Diosas by Tatiana Zuleta. Incluye la
 
 ---
 
+## Multi-tenant — resumen para el desarrollador
+
+Este sistema sirve a **varias empresas** desde una única base de datos Supabase compartida (proyecto `whouejjrpjcvoueyajbu`), aisladas por Row Level Security. Antes de tocar cualquiera de las 3 apps, entender esto:
+
+- **Aislamiento:** las 16 tablas de negocio (`clientes`, `citas`, `servicios`, `empleados`, etc.) tienen una columna `empresa_id`. Las políticas RLS filtran automáticamente por la empresa del usuario autenticado (`current_empresa_id()`) — como desarrollador casi nunca hace falta agregar `.eq('empresa_id', ...)` a mano en admin-dashboard/staff-app, RLS ya lo hace. La única excepción es al **crear** filas nuevas: todo `INSERT` debe incluir `empresa_id` explícitamente, si no la base lo rechaza.
+- **Quién es "yo" en cada app:**
+  - **SpaOhDiosas (esta app, la landing):** no tiene login. Su empresa la define la variable de entorno `EMPRESA_ID` del despliegue — **un despliegue de Vercel = una empresa**. Todas las consultas del backend (`routes/*.js`) filtran por esa variable.
+  - **admin-dashboard y staff-app:** **un solo despliegue sirve a todas las empresas.** No se redespliegan por cada empresa nueva — cada admin/empleada inicia sesión y su propia fila en `admin_users`/`empleados` determina su empresa; RLS hace el resto.
+- **`Empresa 0`** (`id = 00000000-0000-0000-0000-000000000000`) son los datos históricos de Oh Diosas, tratados como la primera empresa del sistema.
+- Diseño completo (RLS, decisiones, qué falta) en `docs/superpowers/specs/2026-08-11-multitenant-design.md` en la raíz del disco del proyecto (no versionado en este repo).
+
+### Cómo desplegar una empresa nueva (paso a paso)
+
+Solo **esta app (la landing)** necesita un despliegue nuevo por empresa. admin-dashboard y staff-app **no se tocan** — la empresa nueva ya funciona ahí apenas se cree su primer admin.
+
+1. **Crear la empresa en la base de datos** (Supabase → SQL Editor, o vía MCP):
+   ```sql
+   insert into empresas (nombre, slug) values ('Nombre de la Empresa', 'slug-unico')
+   returning id;
+   ```
+   Guarda el `id` que devuelve — es el `EMPRESA_ID` del paso 3.
+
+2. **Cargar sus datos iniciales** (todavía vacíos para la empresa nueva): al menos una fila en `configuracion` (horario semanal) y sus `servicios`, con el `empresa_id` recién creado. Se puede hacer por SQL directo o, más simple, dándole acceso al admin de esa empresa para que los cargue desde el panel una vez creado (paso 5).
+
+3. **Nuevo proyecto de Vercel, mismo repositorio:**
+   - Vercel → **Add New Project** → seleccionar `JLCervantes-19/SpaOhDiosas` (el mismo repo, otro proyecto)
+   - Nombre del proyecto: el que corresponda a la empresa (ej. `spa-empresa-b`)
+   - Configurar las variables de entorno igual que en el Paso 3 de la sección de despliegue de abajo, **más**:
+
+     | Variable | Valor |
+     |----------|-------|
+     | `EMPRESA_ID` | el `id` devuelto en el paso 1 |
+
+   - Deploy.
+
+4. **Conectar su dominio propio** en el nuevo proyecto de Vercel (Settings → Domains).
+
+5. **Crear su primer admin** en `admin_users`, con el `empresa_id` de esta empresa — mismo procedimiento que ya usa Oh Diosas (ver `admin-dashboard/INSTRUCCIONES-AGREGAR-ADMIN.md`). Desde ahí, ese admin entra al **mismo** admin-dashboard compartido, ve solo los datos de su empresa, y puede cargar servicios/horario/empleadas por su cuenta.
+
+6. **n8n (el chatbot):** si esta empresa también quiere chatbot, hay que revisar `services/n8n.js` — hoy manda `empresaId` en cada mensaje, así que el workflow de n8n ya sabe filtrar por empresa. No hace falta un workflow nuevo por empresa, es el mismo bot para todas.
+
+Con esto la empresa nueva queda funcionando de punta a punta sin tocar código.
+
+---
+
 ## Estructura del proyecto
 
 ```
@@ -89,6 +134,7 @@ En la sección **Environment Variables** del formulario de importación (o en Se
 | `SUPABASE_SERVICE_KEY` | Clave de servicio (solo backend, nunca expuesta al cliente) | Ver abajo |
 | `N8N_CHAT_WEBHOOK` | Webhook del chatbot N8N | `https://n8n-spa-6y2d.onrender.com/webhook/chatweb` |
 | `ADMIN_TOKEN` | Token secreto para endpoints de administracion | Cualquier cadena segura (ej: genera con `openssl rand -hex 32`) |
+| `EMPRESA_ID` | Multi-tenant: qué empresa es este despliegue (ver sección "Multi-tenant" arriba) | `id` de la fila en `empresas`. Si se omite, cae en Empresa 0 |
 
 #### Donde encontrar `SUPABASE_SERVICE_KEY`
 
@@ -186,6 +232,7 @@ SUPABASE_URL=https://whouejjrpjcvoueyajbu.supabase.co
 SUPABASE_SERVICE_KEY=tu_service_role_key_aqui
 N8N_CHAT_WEBHOOK=https://n8n-spa-6y2d.onrender.com/webhook/chatweb
 ADMIN_TOKEN=cualquier-token-secreto-local
+EMPRESA_ID=00000000-0000-0000-0000-000000000000
 PORT=3000
 ```
 
@@ -199,6 +246,7 @@ PORT=3000
 | `SUPABASE_SERVICE_KEY` | Si | **NUNCA** | Solo servidor |
 | `N8N_CHAT_WEBHOOK` | Si | No | Solo servidor |
 | `ADMIN_TOKEN` | Si | No | Solo servidor |
+| `EMPRESA_ID` | No (cae en Empresa 0) | No | Solo servidor |
 
 ---
 
