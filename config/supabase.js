@@ -10,4 +10,11 @@ export function getSupabaseClient() {
   return cachedClient;
 }
 
+// Multi-tenant: cada despliegue de esta landing sirve a UNA empresa,
+// identificada por esta variable de entorno (Vercel → Settings →
+// Environment Variables, distinta por proyecto/dominio). Si no está
+// configurada, cae en Empresa 0 (los datos de prueba/demo existentes)
+// para no romper el despliegue actual mientras se migra.
+export const EMPRESA_ID = process.env.EMPRESA_ID || '00000000-0000-0000-0000-000000000000';
+
 export default getSupabaseClient;

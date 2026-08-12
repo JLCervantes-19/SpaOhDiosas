@@ -1,5 +1,5 @@
 import express from 'express';
-import getSupabaseClient from '../config/supabase.js';
+import getSupabaseClient, { EMPRESA_ID } from '../config/supabase.js';
 
 const router = express.Router();
 
@@ -19,6 +19,7 @@ router.get('/categories', async (req, res) => {
       .from('categorias')
       .select('id, nombre, color, orden')
       .eq('activo', true)
+      .eq('empresa_id', EMPRESA_ID)
       .order('orden');
 
     if (error) return res.status(500).json({ error: error.message });
@@ -36,6 +37,7 @@ router.get('/', async (req, res) => {
       .from('servicios')
       .select('*, categorias(id, nombre, color)')
       .eq('activo', true)
+      .eq('empresa_id', EMPRESA_ID)
       .order('nombre');
 
     if (error) return res.status(500).json({ error: error.message });
@@ -59,6 +61,7 @@ router.get('/:id', async (req, res) => {
     .from('servicios')
     .select('*')
     .eq('id', req.params.id)
+    .eq('empresa_id', EMPRESA_ID)
     .single();
 
   if (error) return res.status(404).json({ error: 'Servicio no encontrado' });
@@ -84,6 +87,7 @@ router.post('/', requireAdmin, async (req, res) => {
       imagen: imagen ?? '',
       categoria: categoria ?? '',
       activo: true,
+      empresa_id: EMPRESA_ID,
     })
     .select()
     .single();

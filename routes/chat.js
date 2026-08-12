@@ -1,6 +1,6 @@
 import express from 'express';
 import { randomUUID } from 'crypto';
-import getSupabaseClient from '../config/supabase.js';
+import getSupabaseClient, { EMPRESA_ID } from '../config/supabase.js';
 import N8NService from '../services/n8n.js';
 
 const router = express.Router();
@@ -14,7 +14,7 @@ router.post('/session', async (req, res) => {
     const now = new Date().toISOString();
     const { data, error } = await supabase
       .from('chat_sessions')
-      .insert({ session_id: sessionId, started_at: now, last_activity: now })
+      .insert({ session_id: sessionId, started_at: now, last_activity: now, empresa_id: EMPRESA_ID })
       .select('session_id, started_at')
       .single();
 
@@ -49,6 +49,7 @@ router.post('/message', async (req, res) => {
     supabase.from('chat_sessions')
       .update({ last_activity: new Date().toISOString(), ...(user_name && { user_name }) })
       .eq('session_id', session_id)
+      .eq('empresa_id', EMPRESA_ID)
       .then(({ error }) => { if (error) console.error('Error updating session:', error); });
 
     res.status(200).json({
@@ -74,7 +75,8 @@ router.get('/services', async (req, res) => {
     const { data, error } = await supabase
       .from('servicios')
       .select('*')
-      .eq('activo', true);
+      .eq('activo', true)
+      .eq('empresa_id', EMPRESA_ID);
 
     if (error) return res.status(500).json({ error: 'Error consultando servicios' });
     res.status(200).json(data || []);
@@ -94,6 +96,7 @@ router.post('/appointments', async (req, res) => {
       .from('clientes')
       .select('id')
       .eq('documento', documento)
+      .eq('empresa_id', EMPRESA_ID)
       .single();
 
     if (clienteError || !cliente) {
@@ -105,6 +108,7 @@ router.post('/appointments', async (req, res) => {
       .select(`id, fecha, hora_inicio, hora_fin, estado, notas, duracion_total,
         servicios(nombre, descripcion, precio, duracion_min)`)
       .eq('cliente_id', cliente.id)
+      .eq('empresa_id', EMPRESA_ID)
       .order('fecha', { ascending: false })
       .order('hora_inicio', { ascending: false });
 

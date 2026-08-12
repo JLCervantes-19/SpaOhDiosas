@@ -1,5 +1,5 @@
 import express from 'express';
-import getSupabaseClient from '../config/supabase.js';
+import getSupabaseClient, { EMPRESA_ID } from '../config/supabase.js';
 
 const router = express.Router();
 
@@ -13,7 +13,7 @@ router.post('/', async (req, res) => {
 
   const { error } = await supabase
     .from('contactos')
-    .insert({ nombre, email: email ?? '', telefono: telefono ?? '', mensaje: mensaje ?? '' })
+    .insert({ nombre, email: email ?? '', telefono: telefono ?? '', mensaje: mensaje ?? '', empresa_id: EMPRESA_ID })
     .select()
     .single();
 

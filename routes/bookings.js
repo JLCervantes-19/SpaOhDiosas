@@ -1,5 +1,5 @@
 import express from 'express';
-import getSupabaseClient from '../config/supabase.js';
+import getSupabaseClient, { EMPRESA_ID } from '../config/supabase.js';
 
 const router = express.Router();
 
@@ -40,6 +40,7 @@ async function getHorarioSpa() {
     const { data } = await supabase
       .from('configuracion')
       .select('horario_semana, slot_duracion_min, reserva_anticip_min_horas, reserva_anticip_max_dias, buffer_min')
+      .eq('empresa_id', EMPRESA_ID)
       .limit(1)
       .single();
     return {
@@ -76,7 +77,8 @@ async function getCandidatas(servicioId) {
   const { data } = await supabase
     .from('empleado_servicios')
     .select('empleado_id, empleados(id, nombre, apellido, activo)')
-    .eq('servicio_id', servicioId);
+    .eq('servicio_id', servicioId)
+    .eq('empresa_id', EMPRESA_ID);
 
   if (!data?.length) return [];
   return data.map(a => a.empleados).filter(e => e && e.activo === true);
@@ -89,6 +91,7 @@ async function getCitasPorEmpleada(fecha, empleadaIds) {
     .from('citas')
     .select('empleado_id, hora_inicio, hora_fin')
     .eq('fecha', fecha)
+    .eq('empresa_id', EMPRESA_ID)
     .not('estado', 'in', ESTADOS_OCUPAN_SLOT)
     .in('empleado_id', empleadaIds);
 
@@ -106,6 +109,7 @@ async function getBloqueosPorEmpleada(fecha, empleadaIds) {
   const { data } = await supabase
     .from('bloqueos')
     .select('empleado_id, hora_inicio, hora_fin')
+    .eq('empresa_id', EMPRESA_ID)
     .lte('fecha_inicio', fecha)
     .gte('fecha_fin', fecha);
 
@@ -144,6 +148,7 @@ async function sugerirHorarios(servicioId, fechaBase, max = 3) {
     .from('servicios')
     .select('duracion_min, buffer_min')
     .eq('id', servicioId)
+    .eq('empresa_id', EMPRESA_ID)
     .single();
   if (!svc) return [];
 
@@ -203,6 +208,7 @@ router.get('/', async (req, res) => {
     .from('servicios')
     .select('id, duracion_min, buffer_min')
     .eq('id', servicio)
+    .eq('empresa_id', EMPRESA_ID)
     .single();
   if (!svc) return res.status(404).json({ error: 'Servicio no encontrado' });
 
@@ -263,6 +269,7 @@ router.post('/', async (req, res) => {
     .select('*')
     .eq('id', servicio_id)
     .eq('activo', true)
+    .eq('empresa_id', EMPRESA_ID)
     .single();
   if (!svc) return res.status(404).json({ error: 'Servicio no encontrado o inactivo' });
 
@@ -329,6 +336,7 @@ router.post('/', async (req, res) => {
     .select('empleado_id')
     .in('empleado_id', disponiblesIds)
     .eq('servicio_id', servicio_id)
+    .eq('empresa_id', EMPRESA_ID)
     .not('estado', 'in', ESTADOS_OCUPAN_SLOT)
     .gte('fecha', fecha30);
 
@@ -349,7 +357,7 @@ router.post('/', async (req, res) => {
   // Si teléfono y email apuntan a registros distintos, se usa el más
   // completo (más campos con datos) y la reserva se vincula a ese perfil.
   const emailNorm = email ? email.toLowerCase().trim() : '';
-  const telNorm = telefono.trim();
+  const telNorm = telefono.replace(/\D/g, '');
   let cliente_id = null;
 
   const filtros = [`telefono.eq.${telNorm}`];
@@ -358,6 +366,7 @@ router.post('/', async (req, res) => {
   const { data: coincidencias } = await supabase
     .from('clientes')
     .select('id, nombre, telefono, email, fecha_nacimiento, alergias, notas')
+    .eq('empresa_id', EMPRESA_ID)
     .or(filtros.join(','));
 
   if (coincidencias?.length) {
@@ -372,12 +381,12 @@ router.post('/', async (req, res) => {
     if (emailNorm && !elegido.email) patch.email = emailNorm;
     if (telNorm && !elegido.telefono) patch.telefono = telNorm;
     if (Object.keys(patch).length) {
-      await supabase.from('clientes').update(patch).eq('id', cliente_id);
+      await supabase.from('clientes').update(patch).eq('id', cliente_id).eq('empresa_id', EMPRESA_ID);
     }
   } else {
     const { data: nuevoC, error: cErr } = await supabase
       .from('clientes')
-      .insert({ nombre, telefono: telNorm, email: emailNorm, origen: origen ?? 'web' })
+      .insert({ nombre, telefono: telNorm, email: emailNorm, origen: origen ?? 'web', empresa_id: EMPRESA_ID })
       .select()
       .single();
     if (cErr) return res.status(500).json({ error: 'Error al registrar cliente' });
@@ -389,6 +398,7 @@ router.post('/', async (req, res) => {
     .select('hora_inicio, hora_fin')
     .eq('fecha', fecha)
     .eq('empleado_id', asignada.id)
+    .eq('empresa_id', EMPRESA_ID)
     .not('estado', 'in', ESTADOS_OCUPAN_SLOT);
 
   const yaOcupado = (citasFinales || []).some(c =>
@@ -416,6 +426,7 @@ router.post('/', async (req, res) => {
       estado: 'confirmada',
       origen: origen ?? 'web',
       notas: notas ?? '',
+      empresa_id: EMPRESA_ID,
     })
     .select()
     .single();
@@ -441,6 +452,7 @@ router.get('/all', requireAdmin, async (req, res) => {
   let query = supabase
     .from('citas')
     .select('*, clientes(nombre,telefono,email), servicios(nombre,precio), empleados(nombre,apellido)')
+    .eq('empresa_id', EMPRESA_ID)
     .order('fecha', { ascending: false })
     .order('hora_inicio', { ascending: true });
   if (fecha) query = query.eq('fecha', fecha);
@@ -461,6 +473,7 @@ router.patch('/:id/status', requireAdmin, async (req, res) => {
     .from('citas')
     .update({ estado })
     .eq('id', req.params.id)
+    .eq('empresa_id', EMPRESA_ID)
     .select()
     .single();
   if (error) return res.status(404).json({ error: 'Cita no encontrada' });
