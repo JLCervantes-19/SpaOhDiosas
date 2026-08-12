@@ -1,3 +1,5 @@
+import { EMPRESA_ID } from '../config/supabase.js';
+
 class N8NService {
   constructor(webhookUrl = null) {
     this.webhookUrl = webhookUrl || process.env.N8N_CHAT_WEBHOOK;
@@ -19,6 +21,7 @@ class N8NService {
       chatInput: message,
       mensaje: message,
       messageType,
+      empresaId: EMPRESA_ID,
       ...(action && { action }),
     };
 
