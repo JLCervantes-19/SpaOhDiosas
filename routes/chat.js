@@ -25,6 +25,29 @@ router.post('/session', async (req, res) => {
   }
 });
 
+// POST /api/chat/session/close
+// Elimina el registro de la sesión (botón "Cerrar sesión", cierre de
+// pestaña vía sendBeacon, o recarga). Nunca se borra directo desde el
+// cliente — pasa siempre por acá, que usa la credencial del servidor.
+router.post('/session/close', async (req, res) => {
+  const supabase = getSupabaseClient();
+  try {
+    const { session_id } = req.body;
+    if (!session_id) return res.status(400).json({ error: 'session_id es obligatorio' });
+
+    const { error } = await supabase
+      .from('chat_sessions')
+      .delete()
+      .eq('session_id', session_id)
+      .eq('empresa_id', EMPRESA_ID);
+
+    if (error) return res.status(500).json({ error: 'Error cerrando sesión' });
+    res.status(200).json({ closed: true });
+  } catch {
+    res.status(500).json({ error: 'Error inesperado cerrando sesión' });
+  }
+});
+
 // POST /api/chat/message
 router.post('/message', async (req, res) => {
   const supabase = getSupabaseClient();

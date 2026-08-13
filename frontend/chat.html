@@ -500,12 +500,6 @@
   <div class="chat-container">
     <!-- Header -->
     <div class="chat-header">
-      <a href="index.html" class="back-button" aria-label="Volver al inicio">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M19 12H5M12 19l-7-7 7-7"/>
-        </svg>
-      </a>
-      
       <div class="chat-avatar">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.6">
           <path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.5A4 4 0 0 1 12 22a4 4 0 0 1-2-12.5C8.8 8.8 8 7.5 8 6a4 4 0 0 1 4-4z"/>
@@ -521,11 +515,11 @@
         </p>
       </div>
 
-      <a href="index.html" class="back-button" aria-label="Cerrar chat" title="Cerrar chat">
+      <button type="button" id="closeSessionBtn" class="back-button" aria-label="Cerrar sesión" title="Cerrar sesión">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
-      </a>
+      </button>
     </div>
 
     <!-- Messages Area -->
@@ -689,6 +683,24 @@
       } catch (err) { console.error('Session error:', err) }
     }
 
+    // Cierra la sesión vía backend (nunca borrado directo desde el
+    // cliente). navigator.sendBeacon es lo único confiable durante un
+    // cierre de pestaña/navegación — un fetch normal puede cortarse
+    // antes de completarse.
+    function closeSession() {
+      if (!sessionId) return
+      const url = `${API_BASE}/session/close`
+      const payload = JSON.stringify({ session_id: sessionId })
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }))
+      } else {
+        fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true })
+      }
+      localStorage.removeItem('chat_session_id')
+      localStorage.removeItem('chat_user_name')
+      sessionId = null
+    }
+
     async function sendToN8N(message, messageType = 'text') {
       const body = { session_id: sessionId, user_name: userName, message, messageType }
       const res = await fetch(`${API_BASE}/message`, {
@@ -795,6 +807,21 @@
     sendButton.addEventListener('click', handleSendMessage)
     chatInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') handleSendMessage()
+    })
+
+    // Botón único "Cerrar sesión" — cierra la sesión en el backend y recién
+    // después navega, para no dejar el registro huérfano en chat_sessions.
+    document.getElementById('closeSessionBtn').addEventListener('click', () => {
+      closeSession()
+      window.location.href = 'index.html'
+    })
+
+    // Refrescar la página o salir de la pestaña también debe limpiar la
+    // sesión — visibilitychange cubre además cuando el usuario cambia de
+    // pestaña/app sin disparar beforeunload (ej. en móvil).
+    window.addEventListener('beforeunload', closeSession)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') closeSession()
     })
 
     // ── Viewport móvil ────────────────────────────────────────

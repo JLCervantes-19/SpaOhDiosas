@@ -613,6 +613,25 @@ class ChatManager {
     window.addEventListener('chat:quickreply', (e) => {
       this.handleUserMessage(e.detail.option, 'quick_reply', e.detail.action)
     })
+
+    // Nota: a diferencia de chat.html (página dedicada), este widget
+    // mantiene la sesión a propósito al navegar entre páginas del sitio
+    // (localStorage + reutilización en initSession). Por eso NO se conecta
+    // beforeunload acá — haría que cualquier clic a otra página del sitio
+    // borre la sesión y el usuario pierda la conversación. closeSession()
+    // queda disponible para cuando el widget tenga su propio control
+    // explícito de "terminar chat".
+  }
+
+  closeSession() {
+    if (!this.sessionId) return
+    const url = `${this.apiBaseUrl}/session/close`
+    const payload = JSON.stringify({ session_id: this.sessionId })
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }))
+    } else {
+      fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true })
+    }
   }
 
   async initSession() {
