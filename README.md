@@ -61,7 +61,7 @@ SpaOhDiosas/
 │   └── supabase.js           # Cliente Supabase singleton (server-side)
 ├── routes/
 │   ├── bookings.js           # GET /api/slots, POST /api/bookings
-│   ├── chat.js               # POST /api/chat/session, /message, /appointments
+│   ├── chat.js               # POST /api/chat/session, /session/close, /message, /appointments
 │   ├── services.js           # GET /api/services
 │   └── contact.js            # POST /api/contact
 ├── services/
@@ -263,6 +263,7 @@ PORT=3000
 | GET | `/api/bookings/all` | Todas las citas | `x-admin-token` |
 | PATCH | `/api/bookings/:id/status` | Cambiar estado de cita | `x-admin-token` |
 | POST | `/api/chat/session` | Iniciar sesion de chat | Publica |
+| POST | `/api/chat/session/close` | Cerrar sesion de chat (borra el registro) | Publica |
 | POST | `/api/chat/message` | Enviar mensaje al chatbot | Publica |
 | GET | `/api/chat/services` | Servicios para el chat | Publica |
 | POST | `/api/chat/appointments` | Citas via chat | Publica |
@@ -286,3 +287,4 @@ PORT=3000
 - Headers en `vercel.json`: CSP, X-Frame-Options, X-XSS-Protection, Referrer-Policy
 - Rate limiting por IP en todos los endpoints
 - Endpoint admin protegido por `x-admin-token` header
+- El workflow de n8n (el chatbot) habla con Supabase usando `service_role`, guardada como una Credencial cifrada dentro de n8n (tipo Custom Auth) — no la `anon key`, y no en texto plano en el JSON del workflow. Las políticas RLS que antes dejaban leer `citas`/`clientes` con la `anon key` abierta (`bot_lee_citas`, `bot_lee_clientes`) ya no existen.
