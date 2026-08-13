@@ -2,7 +2,28 @@
 
 Sitio web de cara al cliente para el spa Oh Diosas by Tatiana Zuleta. Incluye landing page, catálogo de servicios, sistema de reservas online y chatbot con IA conectado a N8N + Supabase.
 
-**Stack:** Node.js 24 · Express 4 · Supabase · Vanilla JS ES Modules · Vercel Serverless
+**Stack:** Node.js 24 · Express 4 (helmet, cors, compression, express-rate-limit) · Supabase (`@supabase/supabase-js`) · Vanilla JS ES Modules · Vercel Serverless
+
+---
+
+## Identidad visual
+
+Paleta oficial de marca (púrpura/lila + dorado), fuente canónica en `SISTEMA WEB/design-tokens.css` — este bloque debe mantenerse idéntico en `spa.css`, `admin-dashboard/css/admin.css` y `staff-app/css/staff.css`. **Nota:** desde 2026-08, `admin-dashboard` es una excepción intencional a esta paleta compartida (usa dorado + carbón cálido, ver su propio README) — `SpaOhDiosas` y `staff-app` sí la usan sin cambios.
+
+| Token | Valor | Uso |
+|---|---|---|
+| `--purple-dark` | `#522566` | Titulares, botones primarios, texto oscuro |
+| `--purple-medium` | `#7A3A8E` | Texto medio, hover |
+| `--lilac` | `#AD74C3` | Acento principal, CTA |
+| `--lilac-light` | `#EADFF0` | Fondos suaves, bordes |
+| `--lilac-pale` | `#F8EDFB` | Fondos de página / badges |
+| `--gold` / `--gold-light` / `--gold-dark` | `#C9A961` / `#DFC98A` / `#A88740` | Acentos de marca (detalles, avatares) |
+| `--cream` / `--cream-dark` | `#FAF8F5` / `#F0EDE6` | Fondo claro cálido |
+| `--charcoal` | `#1C1C1E` | Footer / texto sobre fondos claros |
+
+Estados de cita (idénticos en las 3 apps, no confundir con la paleta de marca): `--estado-pendiente` `#AD74C3` · `--estado-confirmada` `#2563eb` · `--estado-completada` `#16a34a` · `--estado-no-asistio` `#dc2626` · `--estado-cancelada-c` `#c2410c` · `--estado-cancelada-a` `#64748b` (cada uno con su `-bg` a juego).
+
+**Tipografía:** `--font-display: 'Cormorant Garamond'` (titulares) · `--font-body: 'Jost'` (texto) · `--font-accent: 'Cinzel'` (detalles, mayúsculas espaciadas).
 
 ---
 
@@ -256,6 +277,9 @@ PORT=3000
 |--------|------|-------------|---------------|
 | GET | `/api/health` | Estado del servidor | Publica |
 | GET | `/api/services` | Lista de servicios | Publica |
+| GET | `/api/services/categories` | Categorías de servicios | Publica |
+| GET | `/api/services/:id` | Detalle de un servicio | Publica |
+| POST | `/api/services` | Crear servicio | `x-admin-token` |
 | GET | `/api/testimonials` | Testimonios aprobados | Publica |
 | GET | `/api/config` | Config publica del negocio | Publica |
 | GET | `/api/slots` | Horarios disponibles | Publica |
