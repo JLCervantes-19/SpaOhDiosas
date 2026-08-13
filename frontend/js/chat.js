@@ -699,6 +699,11 @@ class ChatManager {
       this.userName = response.data.userName
       this.saveSession()
     }
+
+    // N8N puede pedir redirigir al usuario (ej. a horarios de un servicio específico)
+    if (response.redirect) {
+      window.location.href = response.redirect
+    }
   }
 
   saveSession() {
