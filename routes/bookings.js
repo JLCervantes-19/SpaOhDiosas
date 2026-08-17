@@ -199,7 +199,7 @@ async function sugerirHorarios(servicioId, fechaBase, max = 3) {
 // GET /api/slots?servicio=id&fecha=YYYY-MM-DD
 router.get('/', async (req, res) => {
   const supabase = getSupabaseClient();
-  const { servicio, fecha } = req.query;
+  const { servicio, fecha, empleadaId } = req.query;
   if (!servicio || !fecha) {
     return res.status(400).json({ error: 'Parámetros requeridos: servicio, fecha' });
   }
@@ -222,7 +222,11 @@ router.get('/', async (req, res) => {
     return res.json({ cerrado: true, slots: [] });
   }
 
-  const candidatas = await getCandidatas(servicio);
+  let candidatas = await getCandidatas(servicio);
+  // Reserva manual desde el admin: restringe la consulta a una sola
+  // empleada específica en vez de "cualquiera asignada al servicio",
+  // reutilizando exactamente la misma lógica de horario/buffer/anticipación.
+  if (empleadaId) candidatas = candidatas.filter(e => e.id === empleadaId);
   if (!candidatas.length) {
     res.set('Cache-Control', 'no-store');
     return res.json({ cerrado: false, slots: [] });
@@ -357,7 +361,11 @@ router.post('/', async (req, res) => {
   // Si teléfono y email apuntan a registros distintos, se usa el más
   // completo (más campos con datos) y la reserva se vincula a ese perfil.
   const emailNorm = email ? email.toLowerCase().trim() : '';
-  const telNorm = telefono.replace(/\D/g, '');
+  const telDigits = telefono.replace(/\D/g, '');
+  // Los números locales tienen 10 dígitos; si vienen más (código de país
+  // pegado, ej. "+57 300 123 4567" -> "573001234567"), nos quedamos con
+  // los últimos 10 para que distintos formatos del mismo número coincidan.
+  const telNorm = telDigits.length > 10 ? telDigits.slice(-10) : telDigits;
   let cliente_id = null;
 
   const filtros = [`telefono.eq.${telNorm}`];

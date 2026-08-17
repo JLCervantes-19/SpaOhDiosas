@@ -185,6 +185,12 @@ export async function loadConfig() {
     const metaDesc = document.querySelector('meta[name="description"]')
     if (metaDesc && cfg.meta_description) metaDesc.setAttribute('content', cfg.meta_description)
 
+    // Colores de marca configurables desde el admin — antes estaban fijos
+    // en spa.css y este endpoint los devolvía sin que nadie los leyera.
+    const root = document.documentElement.style
+    if (cfg.color_primario) root.setProperty('--purple-medium', cfg.color_primario)
+    if (cfg.color_acento)   root.setProperty('--gold', cfg.color_acento)
+
   } catch (_) {
     // Fallo silencioso — valores hardcodeados permanecen
   }

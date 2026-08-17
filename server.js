@@ -19,6 +19,11 @@ const __dirname  = dirname(__filename);
 const app  = express();
 const PORT = process.env.PORT ?? 3000;
 
+// Detrás del proxy/edge de Vercel: sin esto, req.ip no es la IP real del
+// visitante sino un valor interno constante, y todos los visitantes
+// terminan compartiendo el mismo contador de rate limiting.
+app.set('trust proxy', 1);
+
 // ── Compresión ──────────────────────────────────────────────
 app.use(compression());
 
@@ -42,7 +47,10 @@ const bookingLimiter = rateLimit({
   message: { error: 'Demasiados intentos de reserva. Intenta en 15 minutos.' },
 });
 
-app.use(generalLimiter);
+// Solo /api/*: los estáticos (HTML/CSS/JS/íconos/SW) no deben consumir
+// el cupo de solicitudes — antes se aplicaba a toda request y una sola
+// carga de página ya sumaba 10+ unidades solo en assets.
+app.use('/api', generalLimiter);
 
 // ── Middleware ──────────────────────────────────────────────
 app.use(cors({
