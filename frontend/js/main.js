@@ -129,7 +129,7 @@ export function showToast(message, type = 'success') {
   setTimeout(() => {
     toast.style.opacity = '0'
     setTimeout(() => toast.remove(), 300)
-  }, 3500)
+  }, 5500)
 }
 
 // ——— CONFIG DINÁMICA DESDE BD ————————————————————————————
