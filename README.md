@@ -64,7 +64,7 @@ Solo **esta app (la landing)** necesita un despliegue nuevo por empresa. admin-d
 
 4. **Conectar su dominio propio** en el nuevo proyecto de Vercel (Settings → Domains).
 
-5. **Crear su primer admin** en `admin_users`, con el `empresa_id` de esta empresa — mismo procedimiento que ya usa Oh Diosas (ver `admin-dashboard/INSTRUCCIONES-AGREGAR-ADMIN.md`). Desde ahí, ese admin entra al **mismo** admin-dashboard compartido, ve solo los datos de su empresa, y puede cargar servicios/horario/empleadas por su cuenta.
+5. **Crear su primer admin** en `admin_users`, con el `empresa_id` de esta empresa — procedimiento interno del equipo de desarrollo (no documentado en este repo). Desde ahí, ese admin entra al **mismo** admin-dashboard compartido, ve solo los datos de su empresa, y puede cargar servicios/horario/empleadas por su cuenta.
 
 6. **n8n (el chatbot):** si esta empresa también quiere chatbot, hay que revisar `services/n8n.js` — hoy manda `empresaId` en cada mensaje, así que el workflow de n8n ya sabe filtrar por empresa. No hace falta un workflow nuevo por empresa, es el mismo bot para todas.
 
