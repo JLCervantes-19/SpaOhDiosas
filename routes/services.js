@@ -1,14 +1,21 @@
 import express from 'express';
+import { timingSafeEqual } from 'crypto';
 import getSupabaseClient, { EMPRESA_ID } from '../config/supabase.js';
 
 const router = express.Router();
 
-// Igual que en bookings.js: la creación de servicios es solo para admin
+// Igual que en bookings.js: la creación de servicios es solo para admin.
+// Solo por header (no query string, que queda expuesto en logs/referrer) y
+// comparación timing-safe (evita filtrar el token por diferencia de tiempo).
 function requireAdmin(req, res, next) {
   const adminToken = process.env.ADMIN_TOKEN;
   if (!adminToken) return res.status(403).json({ error: 'Admin no configurado' });
-  const provided = req.headers['x-admin-token'] || req.query.admin_token;
-  if (provided !== adminToken) return res.status(401).json({ error: 'Token inválido' });
+  const provided = req.headers['x-admin-token'] || '';
+  const a = Buffer.from(provided);
+  const b = Buffer.from(adminToken);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    return res.status(401).json({ error: 'Token inválido' });
+  }
   next();
 }
 

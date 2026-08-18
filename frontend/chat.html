@@ -816,13 +816,13 @@
       window.location.href = 'index.html'
     })
 
-    // Refrescar la página o salir de la pestaña también debe limpiar la
-    // sesión — visibilitychange cubre además cuando el usuario cambia de
-    // pestaña/app sin disparar beforeunload (ej. en móvil).
+    // Cerrar de verdad la pestaña/navegador limpia la sesión. Ya NO se
+    // limpia en visibilitychange: eso disparaba en cualquier cambio de
+    // pestaña/app (recibir una llamada, revisar otra app un momento) y
+    // borraba el contexto de la conversación con n8n sin que el usuario
+    // hubiera terminado el chat.
     window.addEventListener('beforeunload', closeSession)
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') closeSession()
-    })
+    window.addEventListener('pagehide', closeSession)
 
     // ── Viewport móvil ────────────────────────────────────────
 

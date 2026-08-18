@@ -53,8 +53,21 @@ const bookingLimiter = rateLimit({
 app.use('/api', generalLimiter);
 
 // ── Middleware ──────────────────────────────────────────────
+// Whitelist explícita en vez de un solo string con fallback a '*': antes,
+// si FRONTEND_URL no estaba seteada en el entorno, CORS quedaba abierto a
+// cualquier origen sin que nadie lo notara.
+const ALLOWED_ORIGINS = [
+  process.env.FRONTEND_URL,
+  'https://spa-blush-theta.vercel.app',
+  'https://spa-staff-2026.vercel.app',
+  'https://dashboard-mocha-tau-10.vercel.app',
+  'http://localhost:3000',
+].filter(Boolean);
 app.use(cors({
-  origin: process.env.FRONTEND_URL ?? '*',
+  origin: (origin, cb) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    cb(new Error('Origen no permitido'));
+  },
   methods: ['GET', 'POST', 'PATCH', 'DELETE'],
 }));
 app.use(express.json({ limit: '50kb' }));

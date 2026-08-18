@@ -1,13 +1,20 @@
 import express from 'express';
+import { timingSafeEqual } from 'crypto';
 import getSupabaseClient, { EMPRESA_ID } from '../config/supabase.js';
 
 const router = express.Router();
 
+// Solo por header (no query string, que queda expuesto en logs/referrer) y
+// comparación timing-safe (evita filtrar el token por diferencia de tiempo).
 function requireAdmin(req, res, next) {
   const adminToken = process.env.ADMIN_TOKEN;
   if (!adminToken) return res.status(403).json({ error: 'Admin no configurado' });
-  const provided = req.headers['x-admin-token'] || req.query.admin_token;
-  if (provided !== adminToken) return res.status(401).json({ error: 'Token inválido' });
+  const provided = req.headers['x-admin-token'] || '';
+  const a = Buffer.from(provided);
+  const b = Buffer.from(adminToken);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    return res.status(401).json({ error: 'Token inválido' });
+  }
   next();
 }
 
@@ -50,7 +57,8 @@ async function getHorarioSpa() {
       anticipMaxDias: data?.reserva_anticip_max_dias ?? 60,
       bufferDefault: data?.buffer_min ?? 10,
     };
-  } catch {
+  } catch (err) {
+    console.error('Error obteniendo configuración del spa, usando defaults:', err);
     return { horario: HORARIO_FALLBACK, slotMin: 30, anticipMinHoras: 2, anticipMaxDias: 60, bufferDefault: 10 };
   }
 }
@@ -68,6 +76,15 @@ function cumpleAnticipacion(fecha, horaSlot, anticipMinHoras) {
   if (fecha > ahora.fecha) return true;
   if (fecha < ahora.fecha) return false;
   return timeToMin(horaSlot) >= ahora.minutos + anticipMinHoras * 60;
+}
+
+// ¿La fecha está dentro del máximo de días de anticipación permitidos?
+function dentroDeAnticipacionMaxima(fecha, anticipMaxDias) {
+  const ahora = ahoraBogota();
+  const limite = new Date(`${ahora.fecha}T00:00:00`);
+  limite.setDate(limite.getDate() + anticipMaxDias);
+  const limiteStr = `${limite.getFullYear()}-${String(limite.getMonth() + 1).padStart(2, '0')}-${String(limite.getDate()).padStart(2, '0')}`;
+  return fecha <= limiteStr;
 }
 
 const ESTADOS_OCUPAN_SLOT = '(cancelada_cliente,cancelada_admin,no_asistio)';
@@ -221,6 +238,10 @@ router.get('/', async (req, res) => {
     res.set('Cache-Control', 'no-store');
     return res.json({ cerrado: true, slots: [] });
   }
+  if (!dentroDeAnticipacionMaxima(fecha, config.anticipMaxDias)) {
+    res.set('Cache-Control', 'no-store');
+    return res.json({ cerrado: false, slots: [] });
+  }
 
   let candidatas = await getCandidatas(servicio);
   // Reserva manual desde el admin: restringe la consulta a una sola
@@ -284,6 +305,14 @@ router.post('/', async (req, res) => {
   if (!cumpleAnticipacion(fecha, hora_inicio, configSpa.anticipMinHoras)) {
     return res.status(422).json({
       error: `Las reservas requieren mínimo ${configSpa.anticipMinHoras} horas de anticipación. Por favor elige un horario más tarde u otro día.`,
+      horarios_sugeridos: [],
+    });
+  }
+
+  // Regla de anticipación máxima (configurable, por defecto 60 días).
+  if (!dentroDeAnticipacionMaxima(fecha, configSpa.anticipMaxDias)) {
+    return res.status(422).json({
+      error: `Las reservas solo pueden hacerse hasta con ${configSpa.anticipMaxDias} días de anticipación.`,
       horarios_sugeridos: [],
     });
   }
