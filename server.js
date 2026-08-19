@@ -63,7 +63,11 @@ const ALLOWED_ORIGINS = [
   'https://dashboard-mocha-tau-10.vercel.app',
   'http://localhost:3000',
 ].filter(Boolean);
-app.use(cors({
+// Acotado a /api: los estáticos (HTML/CSS/JS) deben cargar sin importar por qué
+// URL de Vercel entre el visitante (producción, alias de equipo, o la URL de
+// deploy con hash que cambia en cada push). Antes esto se aplicaba a TODA la
+// app y cualquier origin fuera de la whitelist tumbaba el sitio completo.
+app.use('/api', cors({
   origin: (origin, cb) => {
     if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
     cb(new Error('Origen no permitido'));
